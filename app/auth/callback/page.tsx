@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-// ensure no static prerender/caching
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -13,7 +12,6 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     (async () => {
-      // Read the query params directly from window.location (no useSearchParams)
       const url = new URL(window.location.href)
       const errorDesc = url.searchParams.get('error_description')
       const code = url.searchParams.get('code')
@@ -35,7 +33,7 @@ export default function AuthCallbackPage() {
         }
       }
 
-      router.replace('/') // success → home or /dashboard
+      router.replace('/')
     })()
   }, [router])
 
