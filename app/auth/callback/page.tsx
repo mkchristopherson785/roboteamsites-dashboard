@@ -1,41 +1,11 @@
-'use client'
+import ClientCallback from './Client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
-
+// These exports MUST be on a server component (this file)
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
-export default function AuthCallbackPage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    (async () => {
-      const url = new URL(window.location.href)
-      const errorDesc = url.searchParams.get('error_description')
-      const code = url.searchParams.get('code')
-
-      if (errorDesc) {
-        console.error('Supabase auth error:', errorDesc)
-        alert(`Login error: ${errorDesc}`)
-        router.replace('/login')
-        return
-      }
-
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href)
-        if (error) {
-          console.error('Exchange error:', error)
-          alert(`Login failed: ${error.message}`)
-          router.replace('/login')
-          return
-        }
-      }
-
-      router.replace('/')
-    })()
-  }, [router])
-
-  return <p style={{ padding: 20, fontFamily: 'system-ui' }}>Signing you in…</p>
+export default function Page() {
+  // No Suspense required since we’re not using useSearchParams anymore
+  return <ClientCallback />
 }
