@@ -18,7 +18,7 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 export default async function DashboardPage() {
-  // Some Next 15 setups type cookies() as Promise — awaiting is safe either way.
+  // Next 15 note: some setups type cookies() as Promise — awaiting is safe.
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -45,29 +45,62 @@ export default async function DashboardPage() {
   const { data: teamsRaw } = await supabase
     .from('teams')
     .select('id,name,created_at')
-    .order('created_at', { ascending: false })
-
   const teams: Team[] = teamsRaw ?? []
 
   const { data: sitesRaw } = await supabase
     .from('sites')
     .select('id,name,subdomain,team_id,vercel_url,created_at')
-    .order('created_at', { ascending: false })
-
   const sites: Site[] = sitesRaw ?? []
+
+  const isEmpty = teams.length === 0 && sites.length === 0
 
   return (
     <main style={{ maxWidth: 900, margin: '3rem auto', fontFamily: 'system-ui', lineHeight: 1.4 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: '#888', margin: 0 }}>build: v10</p>
+          <p style={{ color: '#888', margin: 0 }}>build: v11</p>
           <p style={{ margin: '6px 0 0' }}>Signed in as <b>{user.email}</b></p>
         </div>
         <a href="/auth/signout" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
           Sign out
         </a>
       </header>
+
+      {/* Onboarding helper when nothing exists yet */}
+      {isEmpty && (
+        <section style={{ marginTop: 8, border: '1px dashed #cbd5e1', borderRadius: 12, padding: 16, background: '#f8fafc' }}>
+          <h3 style={{ marginTop: 0 }}>Get started</h3>
+          <p style={{ marginTop: 8, color: '#334155' }}>
+            It looks like you don’t have any teams or sites yet. You can create them manually,
+            or let us create a starter team and site for you.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <a href="/teams/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
+              + New Team
+            </a>
+            <a href="/sites/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
+              + New Site
+            </a>
+            {/* Server-side bootstrap (respects RLS) */}
+            <form action="/api/bootstrap" method="post">
+              <button
+                type="submit"
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #0b6',
+                  background: '#0b6',
+                  color: '#fff',
+                  borderRadius: 8,
+                  cursor: 'pointer'
+                }}
+              >
+                Create starter team & site
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
 
       <section style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
