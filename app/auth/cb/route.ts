@@ -5,8 +5,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const code = url.searchParams.get('code')
   const errorDesc = url.searchParams.get('error_description')
+  const code = url.searchParams.get('code') // OAuth (PKCE) flow
+  const token_hash = url.searchParams.get('token_hash') // Magic link/OTP flow
+  const type = url.searchParams.get('type') // e.g. 'magiclink', 'recovery', 'invite', etc.
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -29,14 +31,23 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${url.origin}/login?error=${encodeURIComponent(errorDesc)}`)
   }
 
-  if (code) {
-    // Exchange the code for a session. This sets the auth cookies via the cookie helpers above.
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      return NextResponse.redirect(`${url.origin}/login?error=${encodeURIComponent(error.message)}`)
+  try {
+    if (code) {
+      // OAuth flow
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (error) throw error
+    } else if (token_hash && type) {
+      // Magic link / OTP flow (e.g., type=magiclink)
+      const { error } = await supabase.auth.verifyOtp({ type: type as any, token_hash })
+      if (error) throw error
+    } else {
+      // No recognizable params → send to login
+      return NextResponse.redirect(`${url.origin}/login?error=Missing+auth+params`)
     }
+  } catch (e: any) {
+    return NextResponse.redirect(`${url.origin}/login?error=${encodeURIComponent(e?.message ?? 'Auth error')}`)
   }
 
-  // All good: go to the dashboard (now the server will see the cookies).
+  // Success → cookies are set server-side, route to dashboard
   return NextResponse.redirect(`${url.origin}/dashboard`)
 }
