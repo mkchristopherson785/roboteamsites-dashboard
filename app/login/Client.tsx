@@ -12,12 +12,18 @@ export default function LoginClient() {
     e.preventDefault()
     setLoading(true)
     setMsg(null)
+
+    // Use the current origin (works for preview and prod)
+    const origin = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL
+    const emailRedirectTo = `${origin}/auth/cb`
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/cb` } // <-- changed
+      options: { emailRedirectTo }
     })
+
     setLoading(false)
-    setMsg(error ? error.message : 'Check your email for the sign-in link.')
+    setMsg(error ? error.message : `Check your email for the sign-in link.`)
   }
 
   return (
