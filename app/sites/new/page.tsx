@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-// Small helpers for tidy redirects with messages
+// ---- Helpers ----
 function errTo(path: string, msg: string) {
   const p = new URLSearchParams({ error: msg })
   redirect(`${path}?${p.toString()}`)
@@ -44,10 +44,9 @@ export default async function NewSitePage({
   const { data: teamsRaw } = await supabase
     .from('teams')
     .select('id,name')
-    .order('created_at', { ascending: false })
   const teams: Team[] = teamsRaw ?? []
 
-  // Server action
+  // ---- Server Action ----
   async function createSite(formData: FormData): Promise<void> {
     'use server'
 
@@ -123,6 +122,12 @@ export default async function NewSitePage({
       errTo('/sites/new', error?.message ?? 'Failed to create site')
     }
 
+    // ✅ Narrow id before using it
+    const siteId = site?.id
+    if (!siteId) {
+      errTo('/sites/new', 'Site created but missing id')
+    }
+
     // Seed default content
     const seed = {
       team: { name, number: '', school: '', city: '', state: '' },
@@ -144,13 +149,13 @@ export default async function NewSitePage({
 
     const { error: seedErr } = await supabase
       .from('site_content')
-      .insert({ site_id: site.id, data: seed })
+      .insert({ site_id: siteId, data: seed })
 
     if (seedErr) {
       errTo('/sites/new', `Site created, but seeding content failed: ${seedErr.message}`)
     }
 
-    // Success → dashboard (or change to `/sites/${site.id}` if you prefer)
+    // Success
     redirect('/dashboard')
   }
 
