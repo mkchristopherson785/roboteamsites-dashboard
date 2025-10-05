@@ -28,10 +28,14 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try { cookieStore.set(name, value, options) } catch {}
+          try {
+            cookieStore.set(name, value, options)
+          } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try { cookieStore.set(name, '', { ...options, maxAge: 0 }) } catch {}
+          try {
+            cookieStore.set(name, '', { ...options, maxAge: 0 })
+          } catch {}
         },
       },
     }
@@ -45,11 +49,13 @@ export default async function DashboardPage() {
   const { data: teamsRaw } = await supabase
     .from('teams')
     .select('id,name,created_at')
+    .order('created_at', { ascending: false })
   const teams: Team[] = teamsRaw ?? []
 
   const { data: sitesRaw } = await supabase
     .from('sites')
     .select('id,name,subdomain,team_id,vercel_url,created_at')
+    .order('created_at', { ascending: false })
   const sites: Site[] = sitesRaw ?? []
 
   const isEmpty = teams.length === 0 && sites.length === 0
@@ -59,7 +65,7 @@ export default async function DashboardPage() {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: '#888', margin: 0 }}>build: v11</p>
+          <p style={{ color: '#888', margin: 0 }}>build: v12</p>
           <p style={{ margin: '6px 0 0' }}>Signed in as <b>{user.email}</b></p>
         </div>
         <a href="/auth/signout" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
