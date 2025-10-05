@@ -10,12 +10,12 @@ export default function ClientCallback() {
   useEffect(() => {
     (async () => {
       const url = new URL(window.location.href)
-      const errorDesc = url.searchParams.get('error_description')
+      const err = url.searchParams.get('error_description')
       const code = url.searchParams.get('code')
 
-      if (errorDesc) {
-        console.error('Supabase auth error:', errorDesc)
-        alert(`Login error: ${errorDesc}`)
+      if (err) {
+        console.error('Supabase auth error:', err)
+        alert(`Login error: ${err}`)
         router.replace('/login'); return
       }
 
@@ -28,7 +28,7 @@ export default function ClientCallback() {
         }
       }
 
-      router.replace('/') // success → home or dashboard
+      router.replace('/') // success
     })()
   }, [router])
 

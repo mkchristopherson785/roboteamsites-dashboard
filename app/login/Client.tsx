@@ -14,7 +14,7 @@ export default function LoginClient() {
     setMsg(null)
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` }
+      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/cb` } // <-- changed
     })
     setLoading(false)
     setMsg(error ? error.message : 'Check your email for the sign-in link.')
