@@ -10,6 +10,7 @@ type Site = {
   subdomain: string
   team_id: string
   vercel_url: string | null
+  created_at?: string
 }
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,7 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 export default async function DashboardPage() {
-  // In Next 15, cookies() can be Promise-typed in RSC contexts → await it
+  // Some Next 15 setups type cookies() as Promise — awaiting is safe either way.
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -27,36 +28,40 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try { cookieStore.set(name, value, options) } catch { /* noop in RSC */ }
+          try { cookieStore.set(name, value, options) } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try { cookieStore.set(name, '', { ...options, maxAge: 0 }) } catch { /* noop */ }
+          try { cookieStore.set(name, '', { ...options, maxAge: 0 }) } catch {}
         },
       },
     }
   )
 
+  // Require auth
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: teams = [] } = (await supabase
+  // ----- Fetch data (null-safe) -----
+  const { data: teamsRaw } = await supabase
     .from('teams')
     .select('id,name,created_at')
-    .order('created_at', { ascending: false })) as { data: Team[] | null }
+    .order('created_at', { ascending: false })
 
-  const { data: sites = [] } = (await supabase
+  const teams: Team[] = teamsRaw ?? []
+
+  const { data: sitesRaw } = await supabase
     .from('sites')
     .select('id,name,subdomain,team_id,vercel_url,created_at')
-    .order('created_at', { ascending: false })) as {
-      data: (Site & { created_at: string })[] | null
-    }
+    .order('created_at', { ascending: false })
+
+  const sites: Site[] = sitesRaw ?? []
 
   return (
     <main style={{ maxWidth: 900, margin: '3rem auto', fontFamily: 'system-ui', lineHeight: 1.4 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: '#888', margin: 0 }}>build: v9</p>
+          <p style={{ color: '#888', margin: 0 }}>build: v10</p>
           <p style={{ margin: '6px 0 0' }}>Signed in as <b>{user.email}</b></p>
         </div>
         <a href="/auth/signout" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
