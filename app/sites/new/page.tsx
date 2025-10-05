@@ -1,7 +1,7 @@
 // app/sites/new/page.tsx
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 type Team = { id: string; name: string }
 
@@ -17,8 +17,8 @@ export default async function NewSitePage() {
     {
       cookies: {
         get: (n: string) => cookieStore.get(n)?.value,
-        set: (n: string, v: string, o: any) => { try { cookieStore.set(n, v, o) } catch {} },
-        remove: (n: string, o: any) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
+        set: (n: string, v: string, o: CookieOptions) => { try { cookieStore.set(n, v, o) } catch {} },
+        remove: (n: string, o: CookieOptions) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
       },
     }
   )
@@ -43,8 +43,8 @@ export default async function NewSitePage() {
       {
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
-          set: (n: string, v: string, o: any) => { try { cookieStore.set(n, v, o) } catch {} },
-          remove: (n: string, o: any) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
+          set: (n: string, v: string, o: CookieOptions) => { try { cookieStore.set(n, v, o) } catch {} },
+          remove: (n: string, o: CookieOptions) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
         },
       }
     )
