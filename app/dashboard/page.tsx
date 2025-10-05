@@ -1,3 +1,4 @@
+
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
@@ -46,3 +47,4 @@ export default async function DashboardPage() {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
+
