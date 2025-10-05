@@ -22,6 +22,22 @@ export default function Client() {
       }
     }
 
+    const setSsrCookies = async (access_token: string, refresh_token: string) => {
+      await fetch('/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token, refresh_token }),
+        credentials: 'include',
+      })
+    }
+
+    const postLoginHousekeeping = async () => {
+      // Create default team/site if none exist
+      await fetch('/api/bootstrap', { method: 'POST', credentials: 'include' })
+      // Accept any pending team invites for this email
+      await fetch('/api/accept-invites', { method: 'POST', credentials: 'include' })
+    }
+
     ;(async () => {
       try {
         // ---- Case A: Magic link (hash fragment tokens) ----
@@ -32,20 +48,13 @@ export default function Client() {
           const refresh_token = sp.get('refresh_token') ?? undefined
 
           if (access_token && refresh_token) {
-            // Make supabase-js aware (client session)
+            // Client session
             await supabase.auth.setSession({ access_token, refresh_token })
-
-            // Ask server to set httpOnly cookies (SSR session)
-            await fetch('/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ access_token, refresh_token }),
-            })
-
-            // 🔥 Create a default Team + Site if user has none
-            await fetch('/api/bootstrap', { method: 'POST' })
-
-            // Clean up URL (remove tokens) and go to dashboard
+            // Server cookies for SSR
+            await setSsrCookies(access_token, refresh_token)
+            // Post-login tasks
+            await postLoginHousekeeping()
+            // Clean URL + go
             removeHash()
             router.replace('/dashboard')
             return
@@ -61,27 +70,18 @@ export default function Client() {
 
         const code = params.get('code')
         if (code) {
-          // Exchange code → session (supabase-js client)
-          const { data, error } = await supabase.auth.exchangeCodeForSession(
-            typeof window !== 'undefined' ? window.location.href : ''
-          )
+          const href = typeof window !== 'undefined' ? window.location.href : ''
+          const { data, error } = await supabase.auth.exchangeCodeForSession(href)
           if (error) {
             router.replace(`/login?error=${encodeURIComponent(error.message)}`)
             return
           }
 
-          // Set SSR cookies so server can read session
           const at = data.session?.access_token
           const rt = data.session?.refresh_token
           if (at && rt) {
-            await fetch('/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ access_token: at, refresh_token: rt }),
-            })
-
-            // 🔥 Create a default Team + Site if user has none
-            await fetch('/api/bootstrap', { method: 'POST' })
+            await setSsrCookies(at, rt)
+            await postLoginHousekeeping()
           }
 
           router.replace('/dashboard')
