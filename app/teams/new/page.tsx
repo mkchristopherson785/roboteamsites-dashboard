@@ -7,9 +7,14 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-export default async function NewTeamPage() {
-  async function createTeam(formData: FormData) {
+export default async function NewTeamPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string }
+}) {
+  async function createTeam(formData: FormData): Promise<void> {
     'use server'
+
     const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,8 +35,11 @@ export default async function NewTeamPage() {
     const { data: { user }, error: userErr } = await supabase.auth.getUser()
     if (userErr || !user) redirect('/login')
 
-    const name = (formData.get('name') as string)?.trim()
-    if (!name) return { ok: false, message: 'Team name is required.' }
+    const raw = (formData.get('name') as string | null) ?? ''
+    const name = raw.trim()
+    if (!name) {
+      redirect('/teams/new?error=Team%20name%20is%20required')
+    }
 
     // 1) create team with owner=user.id
     const { data: team, error: tErr } = await supabase
@@ -41,19 +49,22 @@ export default async function NewTeamPage() {
       .single()
 
     if (tErr || !team) {
-      return { ok: false, message: tErr?.message ?? 'Failed to create team.' }
+      redirect('/teams/new?error=' + encodeURIComponent(tErr?.message ?? 'Failed to create team'))
     }
 
-    // 2) add membership as owner
+    // 2) add membership as owner (ignore conflict if already exists)
     const { error: mErr } = await supabase
       .from('team_members')
       .insert({ team_id: team.id, user_id: user.id, role: 'owner' })
+      .select('team_id')
+      .single()
 
     if (mErr) {
-      // not fatal for redirect, but helpful if you want to show message
-      return { ok: false, message: mErr.message }
+      // Not fatal, but send them back with a heads-up
+      redirect('/teams/new?error=' + encodeURIComponent('Team created, but adding owner failed: ' + mErr.message))
     }
 
+    // Success
     redirect('/dashboard')
   }
 
@@ -61,6 +72,12 @@ export default async function NewTeamPage() {
     <main style={{maxWidth:520, margin:'3rem auto', fontFamily:'system-ui'}}>
       <h1 style={{marginBottom:8}}>Create a Team</h1>
       <p style={{marginTop:0, color:'#555'}}>You’ll be the owner. You can invite members later.</p>
+
+      {!!searchParams?.error && (
+        <p style={{background:'#fee', border:'1px solid #fbb', color:'#900', padding:'8px 10px', borderRadius:8}}>
+          {decodeURIComponent(searchParams.error)}
+        </p>
+      )}
 
       <form action={createTeam} style={{display:'grid', gap:12, marginTop:16}}>
         <label style={{display:'grid', gap:6}}>
