@@ -247,20 +247,23 @@ export default async function EditSitePage({
           Site ID: <code>{siteId}</code>
         </span>
       }
-      rightActions={
-        <Link
-          href="/dashboard"
+      rightActions={<Link href="/dashboard">Back to dashboard</Link>}
+    >
+      <form action={saveSite} style={{ display: "grid", gap: 12 }}>
+        {/* ...your inputs... */}
+        <button
+          type="submit"
           style={{
             padding: "8px 12px",
-            border: "1px solid #e2e8f0",
+            border: "1px solid #0b6",
+            background: "#0b6",
+            color: "#fff",
             borderRadius: 8,
-            textDecoration: "none",
           }}
         >
-          Back to dashboard
-        </Link>
-      }
-    >
+          Save changes
+        </button>
+      </form>
     </AdminLayout>
   );
       
