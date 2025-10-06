@@ -1,5 +1,6 @@
 // app/dashboard/page.tsx
 import Link from "next/link";
+import DeleteSiteButton from "@/components/DeleteSiteButton";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -58,7 +59,7 @@ export default async function DashboardPage() {
       style={{
         maxWidth: "min(90%, 1000px)",
         margin: "3rem auto",
-        padding: "0 2rem", // adds space on sides
+        padding: "0 2rem",
         fontFamily: "system-ui",
         lineHeight: 1.5,
         wordWrap: "break-word",
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
       >
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: "#888", margin: 0 }}>build: v12</p>
+          <p style={{ color: "#888", margin: 0 }}>build: v13</p>
           <p style={{ margin: "6px 0 0" }}>
             Signed in as <b>{user.email}</b>
           </p>
@@ -150,6 +151,7 @@ export default async function DashboardPage() {
         </section>
       )}
 
+      {/* Teams Section */}
       <section style={{ marginTop: 24 }}>
         <div
           style={{
@@ -199,8 +201,18 @@ export default async function DashboardPage() {
                       Team ID: {t.id}
                     </div>
                   </div>
-                  <Link href={`/teams/${t.id}`} style={{ textDecoration: "none" }}>
-                    Open →
+                  <Link
+                    href={`/teams/${t.id}`}
+                    style={{
+                      background: "#0ea5e9",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      textDecoration: "none",
+                      fontSize: 14,
+                    }}
+                  >
+                    Open
                   </Link>
                 </div>
               </li>
@@ -209,6 +221,7 @@ export default async function DashboardPage() {
         )}
       </section>
 
+      {/* Sites Section */}
       <section style={{ marginTop: 36 }}>
         <div
           style={{
@@ -252,6 +265,7 @@ export default async function DashboardPage() {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      flexWrap: "wrap",
                       gap: 12,
                     }}
                   >
@@ -263,49 +277,66 @@ export default async function DashboardPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      {/* Public views */}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
                       <a
                         href={`/sites/${s.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ textDecoration: "none" }}
+                        style={{
+                          padding: "6px 12px",
+                          background: "#f1f5f9",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          textDecoration: "none",
+                          color: "#0f172a",
+                          fontSize: 14,
+                        }}
                       >
-                        View public
+                        View Public
                       </a>
+
                       {subdomainUrl && (
-                        <a href={subdomainUrl} target="_blank" rel="noreferrer">
-                          {s.subdomain}.{publicHost}
-                        </a>
-                      )}
-                      {s.vercel_url && (
-                        <a href={s.vercel_url} target="_blank" rel="noreferrer">
-                          Vercel
-                        </a>
-                      )}
-                
-                      {/* Editor */}
-                      <Link href={`/sites/${s.id}/edit`} style={{ fontWeight: 600 }}>
-                        Manage →
-                      </Link>
-                
-                      {/* Delete (POST to API route) */}
-                      <form action={`/api/sites/${s.id}/delete`} method="post" style={{ margin: 0 }}>
-                        <button
-                          type="submit"
+                        <a
+                          href={subdomainUrl}
+                          target="_blank"
+                          rel="noreferrer"
                           style={{
-                            padding: "6px 10px",
-                            border: "1px solid #ef4444",
-                            background: "#ef4444",
-                            color: "#fff",
-                            borderRadius: 8,
-                            cursor: "pointer",
+                            padding: "6px 12px",
+                            background: "#f1f5f9",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: 6,
+                            textDecoration: "none",
+                            color: "#0f172a",
+                            fontSize: 14,
                           }}
-                          title="Delete this site (irreversible)"
                         >
-                          Delete
-                        </button>
-                      </form>
+                          Visit
+                        </a>
+                      )}
+
+                      <Link
+                        href={`/sites/${s.id}/edit`}
+                        style={{
+                          padding: "6px 12px",
+                          background: "#0b6",
+                          border: "1px solid #0b6",
+                          borderRadius: 6,
+                          textDecoration: "none",
+                          color: "#fff",
+                          fontSize: 14,
+                        }}
+                      >
+                        Manage
+                      </Link>
+
+                      <DeleteSiteButton siteId={s.id} siteName={s.name} />
                     </div>
                   </div>
                 </li>

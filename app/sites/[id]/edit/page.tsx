@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import AdminLayout, { AButton, ButtonLink, SubmitButton } from "@/components/AdminLayout";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -237,6 +238,27 @@ export default async function EditSitePage({
     (process.env.NEXT_PUBLIC_PUBLIC_HOST
       ? `https://${site.subdomain}.${process.env.NEXT_PUBLIC_PUBLIC_HOST}`
       : "");
+
+  return (
+    <AdminLayout
+      title="Edit Site"
+      subtitle={
+        <span style={{ color: "#475569" }}>
+          Site ID: <code>{siteId}</code>
+        </span>
+      }
+      rightActions={
+        <Link
+          href="/dashboard"
+          style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+        >
+          Back to dashboard
+        </Link>
+      }
+    >
+      {/* keep your status banners & form exactly as-is here */}
+    </AdminLayout>
+  );
 
   return (
     <main

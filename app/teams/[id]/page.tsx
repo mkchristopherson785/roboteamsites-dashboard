@@ -3,10 +3,12 @@ import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import Link from 'next/link'
+import AdminLayout, { AButton, ButtonLink, SubmitButton } from "@/components/AdminLayout";
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
+
 
 type Team = { id: string; name: string; owner: string }
 type MemberRow = {
@@ -68,7 +70,28 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
     .select('id,name,subdomain')
     .eq('team_id', team.id)
   const sites: Site[] = sitesRaw ?? []
-
+  
+  return (
+    <AdminLayout
+      title="Edit Site"
+      subtitle={
+        <span style={{ color: "#475569" }}>
+          Site ID: <code>{siteId}</code>
+        </span>
+      }
+      rightActions={
+        <Link
+          href="/dashboard"
+          style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+        >
+          Back to dashboard
+        </Link>
+      }
+    >
+      {/* keep your status banners & form exactly as-is here */}
+    </AdminLayout>
+  );
+  
   return (
     <main style={{ maxWidth: 900, margin: '2.5rem auto', fontFamily: 'system-ui', lineHeight: 1.45 }}>
       <header style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
