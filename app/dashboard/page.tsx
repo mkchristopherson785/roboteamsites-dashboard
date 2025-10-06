@@ -56,10 +56,13 @@ export default async function DashboardPage() {
   return (
     <main
       style={{
-        maxWidth: 900,
+        maxWidth: "min(90%, 1000px)",
         margin: "3rem auto",
+        padding: "0 2rem", // adds space on sides
         fontFamily: "system-ui",
-        lineHeight: 1.4,
+        lineHeight: 1.5,
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
       }}
     >
       <header
