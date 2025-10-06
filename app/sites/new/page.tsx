@@ -1,4 +1,5 @@
 // app/sites/new/page.tsx
+import AdminLayout, { ButtonLink, SubmitButton } from "@/components/AdminLayout";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -16,26 +17,8 @@ function errTo(path: string, msg: string) {
 }
 const SUBDOMAIN_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED = new Set([
-  "www",
-  "app",
-  "admin",
-  "api",
-  "assets",
-  "static",
-  "vercel",
-  "docs",
-  "help",
-  "support",
-  "login",
-  "dashboard",
-  "cdn",
-  "img",
-  "images",
-  "app1",
-  "dev",
-  "test",
-  "staging",
-  "prod",
+  "www","app","admin","api","assets","static","vercel","docs","help","support",
+  "login","dashboard","cdn","img","images","app1","dev","test","staging","prod",
 ]);
 const normalizeSubdomain = (s: string) => s.trim().toLowerCase();
 
@@ -52,26 +35,25 @@ export default async function NewSitePage({
       cookies: {
         get: (n: string) => cookieStore.get(n)?.value,
         set: (n: string, v: string, o: CookieOptions) => {
-          try {
-            cookieStore.set(n, v, o);
-          } catch {}
+          try { cookieStore.set(n, v, o); } catch {}
         },
         remove: (n: string, o: CookieOptions) => {
-          try {
-            cookieStore.set(n, "", { ...o, maxAge: 0 });
-          } catch {}
+          try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
         },
       },
-    },
+    }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Only teams the user can see (RLS will enforce membership)
-  const { data: teamsRaw } = await supabase.from("teams").select("id,name");
+  // Only teams the user can see (RLS enforces membership)
+  const { data: teamsRaw, error: teamsErr } = await supabase
+    .from("teams")
+    .select("id,name")
+    .order("name", { ascending: true });
+
+  if (teamsErr) errTo("/sites/new", teamsErr.message);
   const teams: Team[] = teamsRaw ?? [];
 
   // ---- Server Action ----
@@ -86,22 +68,16 @@ export default async function NewSitePage({
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
           set: (n: string, v: string, o: CookieOptions) => {
-            try {
-              cookieStore.set(n, v, o);
-            } catch {}
+            try { cookieStore.set(n, v, o); } catch {}
           },
           remove: (n: string, o: CookieOptions) => {
-            try {
-              cookieStore.set(n, "", { ...o, maxAge: 0 });
-            } catch {}
+            try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
           },
         },
-      },
+      }
     );
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
     const name = (formData.get("name") as string | null)?.trim() ?? "";
@@ -116,22 +92,16 @@ export default async function NewSitePage({
 
     // Validate subdomain
     if (!SUBDOMAIN_RE.test(subdomain)) {
-      errTo(
-        "/sites/new",
-        "Subdomain must be 3–40 chars, lowercase letters, numbers, or hyphens",
-      );
+      errTo("/sites/new", "Subdomain must be 3–40 chars, lowercase letters, numbers, or hyphens");
     }
     if (RESERVED.has(subdomain)) {
-      errTo(
-        "/sites/new",
-        "That subdomain is reserved. Please choose a different one.",
-      );
+      errTo("/sites/new", "That subdomain is reserved. Please choose a different one.");
     }
     if (subdomain.startsWith("-") || subdomain.endsWith("-")) {
       errTo("/sites/new", "Subdomain cannot start or end with a hyphen");
     }
 
-    // Ensure user can access the chosen team (RLS + explicit check)
+    // Ensure user can access the chosen team
     const { data: teamCheck, error: tErr } = await supabase
       .from("teams")
       .select("id")
@@ -162,15 +132,10 @@ export default async function NewSitePage({
       .select("id")
       .single();
 
-    if (error || !site) {
+    if (error || !site?.id) {
       errTo("/sites/new", error?.message ?? "Failed to create site");
     }
-
-    // ✅ Narrow id before using it
-    const siteId = site?.id;
-    if (!siteId) {
-      errTo("/sites/new", "Site created but missing id");
-    }
+    const siteId = site.id;
 
     // Seed default content
     const seed = {
@@ -196,62 +161,67 @@ export default async function NewSitePage({
       .insert({ site_id: siteId, data: seed });
 
     if (seedErr) {
-      errTo(
-        "/sites/new",
-        `Site created, but seeding content failed: ${seedErr.message}`,
-      );
+      errTo("/sites/new", `Site created, but seeding content failed: ${seedErr.message}`);
     }
 
-    // Success
-    redirect("/dashboard");
+    // Go straight to the editor
+    redirect(`/sites/${siteId}/edit`);
   }
 
   return (
-    <main
-      style={{ maxWidth: 560, margin: "3rem auto", fontFamily: "system-ui" }}
+    <AdminLayout
+      title="Create New Site"
+      rightActions={<ButtonLink href="/dashboard">Back to Dashboard</ButtonLink>}
+      subtitle={
+        searchParams?.error ? (
+          <p
+            role="alert"
+            style={{
+              margin: "8px 0 0",
+              padding: "8px 10px",
+              borderRadius: 8,
+              background: "#fef2f2",
+              border: "1px solid #fca5a5",
+              color: "#991b1b",
+            }}
+          >
+            {decodeURIComponent(searchParams.error)}
+          </p>
+        ) : null
+      }
     >
-      <h1>Create a Site</h1>
-
-      {!!searchParams?.error && (
-        <p
-          role="alert"
-          style={{
-            background: "#fee",
-            border: "1px solid #fbb",
-            color: "#900",
-            padding: "8px 10px",
-            borderRadius: 8,
-            marginTop: 12,
-          }}
-        >
-          {decodeURIComponent(searchParams.error)}
-        </p>
-      )}
-
-      <form
-        action={createSite}
-        style={{ display: "grid", gap: 12, marginTop: 12 }}
-      >
+      <form action={createSite} style={{ display: "grid", gap: 16, maxWidth: 520 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span>Site name</span>
+          <span>Site Name</span>
           <input
             name="name"
             required
-            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+            placeholder="e.g. RoboRaptors"
+            style={{
+              padding: 10,
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              fontSize: 16,
+            }}
           />
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
-          <span>Subdomain (letters, numbers, hyphens)</span>
+          <span>Subdomain</span>
           <input
             name="subdomain"
-            pattern="[a-z0-9-]+"
             required
-            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+            pattern="[a-z0-9-]+"
+            placeholder="e.g. roboraptors"
+            style={{
+              padding: 10,
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              fontSize: 16,
+            }}
           />
-          <small style={{ color: "#666" }}>
-            Lowercase, 3–40 chars. Avoid reserved words like “www”, “admin”,
-            “api”, “login”.
+          <small style={{ color: "#64748b" }}>
+            Lowercase, 3–40 chars. Avoid reserved words like “www”, “admin”, “api”, “login”.
           </small>
         </label>
 
@@ -260,9 +230,16 @@ export default async function NewSitePage({
           <select
             name="team_id"
             required
-            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+            defaultValue={teams.length === 1 ? teams[0].id : ""}
+            style={{
+              padding: 10,
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              fontSize: 16,
+              background: "#fff",
+            }}
           >
-            <option value="">Select a team…</option>
+            {teams.length !== 1 && <option value="">Select a team…</option>}
             {teams.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -271,19 +248,11 @@ export default async function NewSitePage({
           </select>
         </label>
 
-        <button
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #0b6",
-            background: "#0b6",
-            color: "#fff",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
-        >
-          Create site
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <SubmitButton type="submit" variant="primary">Create Site</SubmitButton>
+          <ButtonLink href="/dashboard">Cancel</ButtonLink>
+        </div>
       </form>
-    </main>
+    </AdminLayout>
   );
 }
