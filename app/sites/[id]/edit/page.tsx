@@ -264,7 +264,6 @@ export default async function EditSitePage({
       {/* ⬇️ Put all of your existing edit-page JSX here (status banners, forms, buttons, etc.) */}
       {/* Example placeholder: */}
       <form action={saveSite} style={{ display: "grid", gap: 12 }}>
-        {/* ...your inputs... */}
         <button type="submit" style={{ padding: "8px 12px", border: "1px solid #0b6", background: "#0b6", color: "#fff", borderRadius: 8 }}>
           Save changes
         </button>
