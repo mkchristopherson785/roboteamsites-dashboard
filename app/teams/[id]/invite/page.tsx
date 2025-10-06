@@ -1,4 +1,5 @@
 // app/teams/[id]/invite/page.tsx
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
@@ -18,12 +19,15 @@ function okTo(teamId: string, msg: string) {
 }
 
 function assertEnv(
-  name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_ANON_KEY' | 'NEXT_PUBLIC_SITE_URL'
+  name:
+    | 'NEXT_PUBLIC_SUPABASE_URL'
+    | 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    | 'NEXT_PUBLIC_SITE_URL'
 ) {
   const v = process.env[name]
   if (!v) {
     throw new Error(
-      `${name} is not set in your environment. Add it in Vercel → Project → Settings → Environment Variables.`
+      `${name} is not set. Add it in Vercel → Project → Settings → Environment Variables.`
     )
   }
   return v
@@ -101,7 +105,8 @@ export default async function InvitePage({
     const { supabaseAdmin } = await import('@/lib/supabaseAdmin')
     const redirectTo = `${assertEnv('NEXT_PUBLIC_SITE_URL')}/auth/cb`
 
-    const { error: mailErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo })
+    const { error: mailErr } =
+      await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo })
     if (mailErr) errTo(teamId, `Invite email failed: ${mailErr.message}`)
 
     okTo(teamId, `Invite sent to ${email}`)
@@ -109,7 +114,15 @@ export default async function InvitePage({
 
   return (
     <main style={{ maxWidth: 520, margin: '3rem auto', fontFamily: 'system-ui' }}>
-      <h1>Invite to {team?.name ?? 'team'}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <h1 style={{ margin: 0 }}>Invite to {team?.name ?? 'team'}</h1>
+        <Link
+          href={`/teams/${teamId}`}
+          style={{ textDecoration: 'none', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: 8 }}
+        >
+          ← Back to team
+        </Link>
+      </div>
 
       {searchParams?.error && (
         <p
@@ -120,6 +133,7 @@ export default async function InvitePage({
             color: '#900',
             padding: '8px 10px',
             borderRadius: 8,
+            marginTop: 12,
           }}
         >
           {decodeURIComponent(searchParams.error)}
@@ -133,6 +147,7 @@ export default async function InvitePage({
             color: '#155724',
             padding: '8px 10px',
             borderRadius: 8,
+            marginTop: 12,
           }}
         >
           {decodeURIComponent(searchParams.ok)}
