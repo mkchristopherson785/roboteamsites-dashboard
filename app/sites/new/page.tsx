@@ -170,28 +170,21 @@ export default async function NewSitePage({
 
   return (
     <AdminLayout
-      title="Create New Site"
-      rightActions={<ButtonLink href="/dashboard">Back to Dashboard</ButtonLink>}
-      subtitle={
-        searchParams?.error ? (
-          <p
-            role="alert"
-            style={{
-              margin: "8px 0 0",
-              padding: "8px 10px",
-              borderRadius: 8,
-              background: "#fef2f2",
-              border: "1px solid #fca5a5",
-              color: "#991b1b",
-            }}
-          >
-            {decodeURIComponent(searchParams.error)}
-          </p>
-        ) : null
+      title="Create a Site"
+      rightActions={
+        <Link href="/dashboard" style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}>
+          Back to dashboard
+        </Link>
       }
     >
-      <form action={createSite} style={{ display: "grid", gap: 16, maxWidth: 520 }}>
-        <label style={{ display: "grid", gap: 6 }}>
+      {!!searchParams?.error && (
+        <p role="alert" style={{ background: "#fee", border: "1px solid #fbb", color: "#900", padding: "8px 10px", borderRadius: 8, marginTop: 12 }}>
+          {decodeURIComponent(searchParams.error)}
+        </p>
+      )}
+    
+      <form action={createSite} style={{ display: "grid", gap: 12, marginTop: 12 }}>
+          <label style={{ display: "grid", gap: 6 }}>
           <span>Site Name</span>
           <input
             name="name"

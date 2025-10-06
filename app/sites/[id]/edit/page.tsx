@@ -250,16 +250,22 @@ export default async function EditSitePage({
       rightActions={
         <Link
           href="/dashboard"
-          style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            textDecoration: "none",
+          }}
         >
           Back to dashboard
         </Link>
       }
     >
-      {/* keep your status banners & form exactly as-is here */}
+      {/* ✅ EVERYTHING that used to render on this page goes here */}
+      {/* banners, forms, preview panels, etc. */}
     </AdminLayout>
   );
-
+      
   return (
     <main
       style={{
