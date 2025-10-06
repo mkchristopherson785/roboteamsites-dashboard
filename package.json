@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "npx prettier --write .",
+    "deploy": "git add -A && git commit -m \"🚀 Deploy update\" && git push origin main",
+    "release": "npm version patch -m \"🔖 Release v%s\" && git push --follow-tags && git push origin main"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -22,6 +25,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "prettier": "^3",
     "typescript": "^5"
   }
 }
