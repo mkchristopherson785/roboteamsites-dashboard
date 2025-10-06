@@ -9,7 +9,13 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 type Team = { id: string; name: string; owner: string }
-type Member = { user_id: string; role: string; users: { email: string | null } }
+type MemberRow = {
+  user_id: string
+  role: string
+  // Supabase might return an object OR an array for the join depending on FK setup
+  users?: { email: string | null } | { email: string | null }[] | null
+}
+type Member = { user_id: string; role: string; email: string | null }
 type Site = { id: string; name: string; subdomain: string }
 
 async function getServerSupabase() {
@@ -41,12 +47,21 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
 
   if (tErr || !team) notFound()
 
-  // ✅ Fetch members joined with user emails
+  // Join members -> users(email). Might be an array if FK isn’t declared.
   const { data: membersRaw } = await supabase
     .from('team_members')
-    .select('user_id, role, users ( email )') // join users table
+    .select('user_id, role, users ( email )')
     .eq('team_id', team.id)
-  const members: Member[] = membersRaw ?? []
+
+  const members: Member[] = (membersRaw ?? []).map((m: MemberRow) => {
+    let email: string | null = null
+    if (Array.isArray(m.users)) {
+      email = m.users[0]?.email ?? null
+    } else if (m.users && typeof m.users === 'object') {
+      email = m.users.email ?? null
+    }
+    return { user_id: m.user_id, role: m.role, email }
+  })
 
   const { data: sitesRaw } = await supabase
     .from('sites')
@@ -78,7 +93,7 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
               <li key={m.user_id} style={{ border:'1px solid #e6e6e6', borderRadius:12, padding:12 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
-                    <div style={{ fontWeight:600 }}>{m.users?.email ?? m.user_id}</div>
+                    <div style={{ fontWeight:600 }}>{m.email ?? m.user_id}</div>
                     <div style={{ fontSize:12, color:'#666' }}>Role: {m.role}</div>
                   </div>
                 </div>
