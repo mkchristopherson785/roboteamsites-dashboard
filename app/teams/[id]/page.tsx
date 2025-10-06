@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import Link from 'next/link'
-import AdminLayout, { AButton, ButtonLink, SubmitButton } from "@/components/AdminLayout";
+import AdminLayout from "@/components/AdminLayout";
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
