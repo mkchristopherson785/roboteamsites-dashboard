@@ -2,6 +2,7 @@
 import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -32,7 +33,6 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Load team (RLS ensures membership/owner)
   const { data: team, error: tErr } = await supabase
     .from('teams')
     .select('id,name,owner')
@@ -41,20 +41,16 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
 
   if (tErr || !team) notFound()
 
-  // Members
   const { data: membersRaw } = await supabase
     .from('team_members')
     .select('user_id,role')
     .eq('team_id', team.id)
-
   const members: Member[] = membersRaw ?? []
 
-  // Sites in this team
   const { data: sitesRaw } = await supabase
     .from('sites')
     .select('id,name,subdomain')
     .eq('team_id', team.id)
-
   const sites: Site[] = sitesRaw ?? []
 
   return (
@@ -66,9 +62,9 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
             Team ID: <code>{team.id}</code>
           </p>
         </div>
-        <a href={`/teams/${team.id}/invite`} style={{ textDecoration:'none', border:'1px solid #e2e8f0', padding:'8px 12px', borderRadius:8 }}>
+        <Link href={`/teams/${team.id}/invite`} style={{ textDecoration:'none', border:'1px solid #e2e8f0', padding:'8px 12px', borderRadius:8 }}>
           Invite members →
-        </a>
+        </Link>
       </header>
 
       <section style={{ marginTop:24 }}>
@@ -94,7 +90,9 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
       <section style={{ marginTop:32 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <h2 style={{ margin:'0 0 8px' }}>Sites</h2>
-          <a href="/sites/new" style={{ textDecoration:'none', fontWeight:600 }}>+ New Site</a>
+          <Link href="/sites/new" style={{ textDecoration:'none', fontWeight:600 }}>
+            + New Site
+          </Link>
         </div>
         {sites.length === 0 ? (
           <p style={{ color:'#555' }}>No sites for this team yet.</p>
@@ -109,7 +107,9 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
                       Subdomain: <code>{s.subdomain}</code>
                     </div>
                   </div>
-                  <a href={`/sites/${s.id}`} style={{ textDecoration:'none' }}>Manage →</a>
+                  <Link href={`/sites/${s.id}`} style={{ textDecoration:'none' }}>
+                    Manage →
+                  </Link>
                 </div>
               </li>
             ))}
@@ -118,9 +118,9 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
       </section>
 
       <div style={{ marginTop:24 }}>
-        <a href="/dashboard" style={{ textDecoration:'none', border:'1px solid #e2e8f0', padding:'8px 12px', borderRadius:8 }}>
+        <Link href="/dashboard" style={{ textDecoration:'none', border:'1px solid #e2e8f0', padding:'8px 12px', borderRadius:8 }}>
           ← Back to dashboard
-        </a>
+        </Link>
       </div>
     </main>
   )
