@@ -1,4 +1,5 @@
 // app/dashboard/page.tsx
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
@@ -18,7 +19,6 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 export default async function DashboardPage() {
-  // Next 15 note: some setups type cookies() as Promise — awaiting is safe.
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -28,34 +28,24 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, value, options)
-          } catch {}
+          try { cookieStore.set(name, value, options) } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, '', { ...options, maxAge: 0 })
-          } catch {}
+          try { cookieStore.set(name, '', { ...options, maxAge: 0 }) } catch {}
         },
       },
     }
   )
 
-  // Require auth
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // ----- Fetch data (null-safe) -----
-  const { data: teamsRaw } = await supabase
-    .from('teams')
-    .select('id,name,created_at')
-    .order('created_at', { ascending: false })
+  const { data: teamsRaw } = await supabase.from('teams').select('id,name,created_at')
   const teams: Team[] = teamsRaw ?? []
 
   const { data: sitesRaw } = await supabase
     .from('sites')
     .select('id,name,subdomain,team_id,vercel_url,created_at')
-    .order('created_at', { ascending: false })
   const sites: Site[] = sitesRaw ?? []
 
   const isEmpty = teams.length === 0 && sites.length === 0
@@ -65,7 +55,7 @@ export default async function DashboardPage() {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: '#888', margin: 0 }}>build: v12</p>
+          <p style={{ color: '#888', margin: 0 }}>build: v11</p>
           <p style={{ margin: '6px 0 0' }}>Signed in as <b>{user.email}</b></p>
         </div>
         <a href="/auth/signout" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
@@ -73,7 +63,6 @@ export default async function DashboardPage() {
         </a>
       </header>
 
-      {/* Onboarding helper when nothing exists yet */}
       {isEmpty && (
         <section style={{ marginTop: 8, border: '1px dashed #cbd5e1', borderRadius: 12, padding: 16, background: '#f8fafc' }}>
           <h3 style={{ marginTop: 0 }}>Get started</h3>
@@ -82,13 +71,12 @@ export default async function DashboardPage() {
             or let us create a starter team and site for you.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <a href="/teams/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
+            <Link href="/teams/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
               + New Team
-            </a>
-            <a href="/sites/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
+            </Link>
+            <Link href="/sites/new" style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, textDecoration: 'none' }}>
               + New Site
-            </a>
-            {/* Server-side bootstrap (respects RLS) */}
+            </Link>
             <form action="/api/bootstrap" method="post">
               <button
                 type="submit"
@@ -111,7 +99,7 @@ export default async function DashboardPage() {
       <section style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: '0 0 8px' }}>Your Teams</h2>
-          <a href="/teams/new" style={{ fontWeight: 600, textDecoration: 'none' }}>+ New Team</a>
+          <Link href="/teams/new" style={{ fontWeight: 600, textDecoration: 'none' }}>+ New Team</Link>
         </div>
         {teams.length === 0 ? (
           <p style={{ color: '#555' }}>You’re not in any teams yet. Create one to get started.</p>
@@ -124,7 +112,7 @@ export default async function DashboardPage() {
                     <div style={{ fontWeight: 700 }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: '#666' }}>Team ID: {t.id}</div>
                   </div>
-                  <a href={`/teams/${t.id}`} style={{ textDecoration: 'none' }}>Open →</a>
+                  <Link href={`/teams/${t.id}`} style={{ textDecoration: 'none' }}>Open →</Link>
                 </div>
               </li>
             ))}
@@ -135,7 +123,7 @@ export default async function DashboardPage() {
       <section style={{ marginTop: 36 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: '0 0 8px' }}>Your Sites</h2>
-          <a href="/sites/new" style={{ fontWeight: 600, textDecoration: 'none' }}>+ New Site</a>
+          <Link href="/sites/new" style={{ fontWeight: 600, textDecoration: 'none' }}>+ New Site</Link>
         </div>
         {sites.length === 0 ? (
           <p style={{ color: '#555' }}>No sites yet. Create one and publish with one click.</p>
@@ -152,7 +140,7 @@ export default async function DashboardPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 12 }}>
                     {s.vercel_url && <a href={s.vercel_url} target="_blank" rel="noreferrer">View Live</a>}
-                    <a href={`/sites/${s.id}`}>Manage →</a>
+                    <Link href={`/sites/${s.id}`}>Manage →</Link>
                   </div>
                 </div>
               </li>
