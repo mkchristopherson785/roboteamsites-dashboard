@@ -9,7 +9,7 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 type Team = { id: string; name: string; owner: string }
-type Member = { user_id: string; role: string }
+type Member = { user_id: string; role: string; users: { email: string | null } }
 type Site = { id: string; name: string; subdomain: string }
 
 async function getServerSupabase() {
@@ -41,9 +41,10 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
 
   if (tErr || !team) notFound()
 
+  // ✅ Fetch members joined with user emails
   const { data: membersRaw } = await supabase
     .from('team_members')
-    .select('user_id,role')
+    .select('user_id, role, users ( email )') // join users table
     .eq('team_id', team.id)
   const members: Member[] = membersRaw ?? []
 
@@ -77,7 +78,7 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
               <li key={m.user_id} style={{ border:'1px solid #e6e6e6', borderRadius:12, padding:12 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
-                    <div style={{ fontWeight:600 }}>{m.user_id}</div>
+                    <div style={{ fontWeight:600 }}>{m.users?.email ?? m.user_id}</div>
                     <div style={{ fontSize:12, color:'#666' }}>Role: {m.role}</div>
                   </div>
                 </div>
