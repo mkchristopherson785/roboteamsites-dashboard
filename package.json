@@ -1,6 +1,6 @@
 {
   "name": "roboteamsites-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "npx prettier --write .",
-    "deploy": "git add -A && git commit -m \"🚀 Deploy update\" && git push origin main",
-    "release": "npm version patch -m \"🔖 Release v%s\" && git push --follow-tags && git push origin main"
+    "deploy": "npm version patch -m '🚀 Auto-deploy v%s' && git add -A && git commit -m '🔄 Update source' || true && git push origin main --follow-tags && echo '✅ Version bumped and pushed to GitHub!'",
+    "release": "npm version minor -m '🔖 Release v%s' && git push origin main --follow-tags"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
