@@ -259,6 +259,7 @@ export default async function DashboardPage() {
                         <code>{s.team_id}</code>
                       </div>
                     </div>
+
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                       {/* Public views */}
                       <Link href={`/sites/${s.id}`} prefetch={false}>
@@ -274,10 +275,29 @@ export default async function DashboardPage() {
                           Vercel
                         </a>
                       )}
+
                       {/* Editor */}
                       <Link href={`/sites/${s.id}/edit`} style={{ fontWeight: 600 }}>
                         Manage →
                       </Link>
+
+                      {/* Delete (POST to API route) */}
+                      <form action={`/api/sites/${s.id}/delete`} method="post" style={{ margin: 0 }}>
+                        <button
+                          type="submit"
+                          style={{
+                            padding: "6px 10px",
+                            border: "1px solid #ef4444",
+                            background: "#ef4444",
+                            color: "#fff",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                          }}
+                          title="Delete this site (irreversible)"
+                        >
+                          Delete
+                        </button>
+                      </form>
                     </div>
                   </div>
                 </li>
