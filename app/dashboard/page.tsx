@@ -262,9 +262,14 @@ export default async function DashboardPage() {
 
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                       {/* Public views */}
-                      <Link href={`/sites/${s.id}`} prefetch={false}>
+                      <a
+                        href={`/sites/${s.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ textDecoration: "none" }}
+                      >
                         View public
-                      </Link>
+                      </a>
                       {subdomainUrl && (
                         <a href={subdomainUrl} target="_blank" rel="noreferrer">
                           {s.subdomain}.{publicHost}
@@ -275,12 +280,12 @@ export default async function DashboardPage() {
                           Vercel
                         </a>
                       )}
-
+                
                       {/* Editor */}
                       <Link href={`/sites/${s.id}/edit`} style={{ fontWeight: 600 }}>
                         Manage →
                       </Link>
-
+                
                       {/* Delete (POST to API route) */}
                       <form action={`/api/sites/${s.id}/delete`} method="post" style={{ margin: 0 }}>
                         <button
