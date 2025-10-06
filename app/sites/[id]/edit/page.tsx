@@ -1,4 +1,5 @@
 // app/sites/[id]/edit/page.tsx
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -87,17 +88,23 @@ export default async function EditSitePage({
       cookies: {
         get: (n: string) => cookieStore.get(n)?.value,
         set: (n: string, v: string, o: CookieOptions) => {
-          try { cookieStore.set(n, v, o); } catch {}
+          try {
+            cookieStore.set(n, v, o);
+          } catch {}
         },
         remove: (n: string, o: CookieOptions) => {
-          try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
+          try {
+            cookieStore.set(n, "", { ...o, maxAge: 0 });
+          } catch {}
         },
       },
     }
   );
 
   // Require auth
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   // Load the site (RLS enforces membership via sites.team_id)
@@ -109,7 +116,7 @@ export default async function EditSitePage({
 
   if (sErr || !site) notFound();
 
-  const siteId = site.id; // non-null for actions
+  const siteId = site.id;
 
   // Load or create (virtually) content row
   const { data: content } = await supabase
@@ -148,30 +155,44 @@ export default async function EditSitePage({
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
           set: (n: string, v: string, o: CookieOptions) => {
-            try { cookieStore.set(n, v, o); } catch {}
+            try {
+              cookieStore.set(n, v, o);
+            } catch {}
           },
           remove: (n: string, o: CookieOptions) => {
-            try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
+            try {
+              cookieStore.set(n, "", { ...o, maxAge: 0 });
+            } catch {}
           },
         },
       }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
     const siteName = (formData.get("site_name") as string | null)?.trim() ?? "";
     const subdomain =
-      (formData.get("site_subdomain") as string | null)?.trim().toLowerCase() ?? "";
+      (formData.get("site_subdomain") as string | null)?.trim().toLowerCase() ??
+      "";
 
     if (!siteName || !subdomain) {
-      redirect(`/sites/${params.id}/edit?error=${encodeURIComponent("Site name and subdomain are required")}`);
+      redirect(
+        `/sites/${params.id}/edit?error=${encodeURIComponent(
+          "Site name and subdomain are required"
+        )}`
+      );
     }
 
     const team = decode<TeamBlock>(formData.get("team_json"), data.team);
     const theme = decode<Theme>(formData.get("theme_json"), data.theme);
     const links = decode<LinkItem[]>(formData.get("links_json"), data.links);
-    const sponsors = decode<Sponsors>(formData.get("sponsors_json"), data.sponsors);
+    const sponsors = decode<Sponsors>(
+      formData.get("sponsors_json"),
+      data.sponsors
+    );
 
     const { error: siteErr } = await supabase
       .from("sites")
@@ -179,7 +200,9 @@ export default async function EditSitePage({
       .eq("id", siteId);
 
     if (siteErr) {
-      redirect(`/sites/${params.id}/edit?error=${encodeURIComponent(siteErr.message)}`);
+      redirect(
+        `/sites/${params.id}/edit?error=${encodeURIComponent(siteErr.message)}`
+      );
     }
 
     if (content?.id) {
@@ -188,14 +211,21 @@ export default async function EditSitePage({
         .update({ data: { team, theme, links, sponsors } as SiteData })
         .eq("id", content.id);
       if (upErr) {
-        redirect(`/sites/${params.id}/edit?error=${encodeURIComponent(upErr.message)}`);
+        redirect(
+          `/sites/${params.id}/edit?error=${encodeURIComponent(upErr.message)}`
+        );
       }
     } else {
       const { error: insErr } = await supabase
         .from("site_content")
-        .insert({ site_id: siteId, data: { team, theme, links, sponsors } as SiteData });
+        .insert({
+          site_id: siteId,
+          data: { team, theme, links, sponsors } as SiteData,
+        });
       if (insErr) {
-        redirect(`/sites/${params.id}/edit?error=${encodeURIComponent(insErr.message)}`);
+        redirect(
+          `/sites/${params.id}/edit?error=${encodeURIComponent(insErr.message)}`
+        );
       }
     }
 
@@ -232,18 +262,19 @@ export default async function EditSitePage({
             {liveUrl && (
               <>
                 · Public:{" "}
-                <a href={`/sites/${siteId}`} target="_blank" rel="noreferrer">
+                <Link href={`/sites/${siteId}`} target="_blank">
                   View public page
-                </a>
+                </Link>
                 {site.subdomain && (
                   <>
                     {" "}|{" "}
-                    <a href={`/site/${site.subdomain}`} target="_blank" rel="noreferrer">
+                    <Link href={`/site/${site.subdomain}`} target="_blank">
                       View by subdomain
-                    </a>
+                    </Link>
                   </>
                 )}
                 {" "}|{" "}
+                {/* API download can be a normal <a> since it's not a Next page */}
                 <a href={`/api/sites/${siteId}/export`} target="_blank" rel="noreferrer">
                   Download static HTML
                 </a>
@@ -251,7 +282,7 @@ export default async function EditSitePage({
             )}
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard"
           style={{
             textDecoration: "none",
@@ -261,7 +292,7 @@ export default async function EditSitePage({
           }}
         >
           ← Back to dashboard
-        </a>
+        </Link>
       </header>
 
       {!!searchParams?.saved && (
@@ -313,7 +344,11 @@ export default async function EditSitePage({
                 name="site_name"
                 defaultValue={site.name}
                 required
-                style={{ padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+                style={{
+                  padding: 10,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                }}
               />
             </label>
             <label style={{ display: "grid", gap: 6 }}>
@@ -323,16 +358,27 @@ export default async function EditSitePage({
                 defaultValue={site.subdomain}
                 required
                 pattern="[a-z0-9-]+"
-                style={{ padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+                style={{
+                  padding: 10,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                }}
               />
-              <small style={{ color: "#64748b" }}>lowercase letters, numbers, hyphens</small>
+              <small style={{ color: "#64748b" }}>
+                lowercase letters, numbers, hyphens
+              </small>
             </label>
           </div>
         </section>
 
         {/* Team block */}
         <section
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, background: "#fff" }}
+          style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: 16,
+            background: "#fff",
+          }}
         >
           <h2 style={{ marginTop: 0 }}>Team</h2>
           <p style={{ marginTop: 0, color: "#64748b" }}>
@@ -345,7 +391,12 @@ export default async function EditSitePage({
                 name="team_json"
                 rows={8}
                 defaultValue={stringify(data.team)}
-                style={{ fontFamily: "ui-monospace, Menlo, monospace", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+                style={{
+                  fontFamily: "ui-monospace, Menlo, monospace",
+                  padding: 10,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                }}
               />
             </label>
           </div>
@@ -353,7 +404,12 @@ export default async function EditSitePage({
 
         {/* Theme */}
         <section
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, background: "#fff" }}
+          style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: 16,
+            background: "#fff",
+          }}
         >
           <h2 style={{ marginTop: 0 }}>Theme</h2>
           <p style={{ marginTop: 0, color: "#64748b" }}>
@@ -365,19 +421,31 @@ export default async function EditSitePage({
               name="theme_json"
               rows={10}
               defaultValue={stringify(data.theme)}
-              style={{ fontFamily: "ui-monospace, Menlo, monospace", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+              style={{
+                fontFamily: "ui-monospace, Menlo, monospace",
+                padding: 10,
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+              }}
             />
           </label>
         </section>
 
         {/* Links */}
         <section
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, background: "#fff" }}
+          style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: 16,
+            background: "#fff",
+          }}
         >
           <h2 style={{ marginTop: 0 }}>Quick Links</h2>
           <p style={{ marginTop: 0, color: "#64748b" }}>
             Array like:{" "}
-            <code>[{`{ "label": "FTC", "href": "https://firstinspires.org/robotics/ftc" }`}]</code>
+            <code>
+              [{`{ "label": "FTC", "href": "https://firstinspires.org/robotics/ftc" }`}]
+            </code>
           </p>
           <label style={{ display: "grid", gap: 6 }}>
             <span>Links JSON</span>
@@ -385,18 +453,29 @@ export default async function EditSitePage({
               name="links_json"
               rows={8}
               defaultValue={stringify(data.links)}
-              style={{ fontFamily: "ui-monospace, Menlo, monospace", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+              style={{
+                fontFamily: "ui-monospace, Menlo, monospace",
+                padding: 10,
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+              }}
             />
           </label>
         </section>
 
         {/* Sponsors */}
         <section
-          style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, background: "#fff" }}
+          style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: 16,
+            background: "#fff",
+          }}
         >
           <h2 style={{ marginTop: 0 }}>Sponsors</h2>
           <p style={{ marginTop: 0, color: "#64748b" }}>
-            Object with tiers: <code>{`{ "platinum": [], "gold": [], "silver": [], "bronze": [] }`}</code>
+            Object with tiers:{" "}
+            <code>{`{ "platinum": [], "gold": [], "silver": [], "bronze": [] }`}</code>
           </p>
           <label style={{ display: "grid", gap: 6 }}>
             <span>Sponsors JSON</span>
@@ -404,7 +483,12 @@ export default async function EditSitePage({
               name="sponsors_json"
               rows={10}
               defaultValue={stringify(data.sponsors)}
-              style={{ fontFamily: "ui-monospace, Menlo, monospace", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+              style={{
+                fontFamily: "ui-monospace, Menlo, monospace",
+                padding: 10,
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+              }}
             />
           </label>
         </section>
@@ -424,12 +508,17 @@ export default async function EditSitePage({
           >
             Save changes
           </button>
-          <a
+          <Link
             href="/dashboard"
-            style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+            style={{
+              padding: "10px 14px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              textDecoration: "none",
+            }}
           >
             Cancel
-          </a>
+          </Link>
         </div>
       </form>
     </main>
