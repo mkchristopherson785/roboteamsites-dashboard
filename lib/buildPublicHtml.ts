@@ -1,158 +1,154 @@
 // lib/buildPublicHtml.ts
-// Minimal server-safe HTML builder used by:
-// - app/api/sites/[id]/export/route.ts
-// - app/site/[subdomain]/route.ts
+type Link = { label: string; href: string; external?: boolean };
+type Member = { name: string; role?: string; img?: string };
+type Sponsor = { name: string; tier?: string; logo?: string };
+type Card = { title: string; text?: string; img?: string };
 
 export type SiteData = {
   team: {
-    name: string
-    number?: string
-    school?: string
-    city?: string
-    state?: string
-    founding?: number
-    contactEmail?: string
-    logo?: string // optional data URL or https URL
-    hero?: string // optional data URL or https URL
-    favicon?: string // optional data URL or https URL
-  }
-  links: Array<{ label: string; href: string; external?: boolean }>
+    name: string;
+    number?: string;
+    school?: string;
+    city?: string;
+    state?: string;
+    founding?: number;
+    contactEmail?: string;
+    logoSrc?: string;   // optional inline data URL or absolute URL
+    favSrc?: string;    // optional data URL / absolute URL
+    heroSrc?: string;   // optional data URL / absolute URL
+  };
+  links: Link[];
+  members?: Member[];
+  sponsors?: {
+    platinum?: Sponsor[];
+    gold?: Sponsor[];
+    silver?: Sponsor[];
+    bronze?: Sponsor[];
+  };
+  outreach?: Card[];
+  resources?: Card[];
+  bullets?: string[];
+  showTierHeadings?: boolean;
+  calendar?: {
+    ics?: string;
+    gcal?: string;
+    tz?: string;
+  };
   theme: {
-    background: string
-    card: string
-    text: string
-    headline: string
-    footerText: string
-    accent: string
-    headerBg: string
-    headerText: string
-    buttonText: string
-    underlineLinks: boolean
-  }
-  sponsors: {
-    platinum: Array<{ name: string; logo?: string }>
-    gold: Array<{ name: string; logo?: string }>
-    silver: Array<{ name: string; logo?: string }>
-    bronze: Array<{ name: string; logo?: string }>
-  }
-  // Optional extra blocks you may add later:
-  members?: Array<{ name: string; role?: string; img?: string }>
-  outreach?: Array<{ title: string; text?: string; img?: string }>
-  resources?: Array<{ title: string; text?: string; img?: string }>
-  bullets?: string[]
-  showTierHeadings?: boolean
+    background: string;
+    card: string;
+    text: string;
+    headline: string;
+    footerText: string;
+    accent: string;
+    headerBg: string;
+    headerText: string;
+    buttonText: string;
+    underlineLinks?: boolean;
+  };
+};
+
+function esc(s: unknown) {
+  const str = String(s ?? '');
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-const esc = (s: unknown) =>
-  String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+// ----- Sponsors (typed, no `any`) -----
+const TIER_ORDER = ['Platinum', 'Gold', 'Silver', 'Bronze'] as const;
+type Tier = typeof TIER_ORDER[number];
 
-function sponsorRow(
-  title: string,
-  list: Array<{ name: string; logo?: string }>,
-  card: string
+function tierRows(
+  theme: SiteData['theme'],
+  sponsors: NonNullable<SiteData['sponsors']>,
+  showHeadings = true
 ) {
-  if (!list?.length) return ''
-  const cards = list
-    .map((s) => {
-      return `
-        <div class="spCard" style="display:grid;place-items:center;background:${card};border:1px solid #e6efe9;border-radius:14px;height:72px;padding:6px;min-width:160px">
-          ${s.logo ? `<img src="${esc(s.logo)}" style="max-width:90%;max-height:54px">` : esc(s.name)}
-        </div>
-      `
-    })
-    .join('')
-  return `
-    <div class="tierRow" style="margin-bottom:1rem">
+  const map: Record<Tier, Sponsor[]> = {
+    Platinum: sponsors.platinum ?? [],
+    Gold: sponsors.gold ?? [],
+    Silver: sponsors.silver ?? [],
+    Bronze: sponsors.bronze ?? [],
+  };
+
+  const sizeForTier = (tier?: string) => {
+    switch ((tier || '').toLowerCase()) {
+      case 'platinum': return '90px';
+      case 'gold': return '72px';
+      case 'silver': return '58px';
+      case 'bronze': return '46px';
+      default: return '58px';
+    }
+  };
+
+  const card = (s: Sponsor) => {
+    const h = sizeForTier(s.tier);
+    const logo = s.logo
+      ? `<img src="${s.logo}" style="max-width:90%;max-height:calc(${h} - 18px)">`
+      : 'Logo';
+    return `<div class="spCard" style="display:grid;place-items:center;background:${theme.card};border:1px solid #e6efe9;border-radius:14px;height:${h};padding:6px;min-width:160px">${logo}</div>`;
+  };
+
+  return TIER_ORDER.map((tier) => {
+    const list = map[tier] || [];
+    if (!list.length) return '';
+    const heading = showHeadings
+      ? `<div class="tierTitle" style="text-align:center;margin:.4rem 0 .6rem;font-weight:800;color:#37574a">${tier}</div>`
+      : '';
+    return `<div class="tierRow" style="margin-bottom:1rem">${heading}
       <div class="tierWrap" style="display:flex;flex-wrap:wrap;justify-content:center;gap:1rem">
-        ${cards}
+        ${list.map(card).join('')}
       </div>
-    </div>
-  `
+    </div>`;
+  }).join('');
 }
 
-export function buildPublicHtml(data: SiteData): string {
-  const t = data.team ?? {
-    name: 'FTC Team',
-    number: '',
-    school: '',
-    city: '',
-    state: '',
-  }
+export function buildPublicHtml(input: SiteData) {
+  const t = input.team ?? { name: 'FTC Team' };
+  const theme = input.theme;
+  const teamName = t.name || 'FTC Team';
+  const teamNumber = t.number ? ` • ${esc(t.number)}` : '';
+  const schoolLoc = [t.school, [t.city, t.state].filter(Boolean).join(', ')].filter(Boolean).join(' • ');
+  const favLink = t.favSrc ? `<link rel="icon" href="${t.favSrc}">` : '';
+  const logoHTML = t.logoSrc
+    ? `<img src="${t.logoSrc}" alt="Team Logo" style="height:38px;border-radius:8px">`
+    : `<svg viewBox="0 0 64 64" style="height:36px"><path fill="var(--green)" d="M8 38c0-9 8-16 22-16 9 0 12-5 15-10 2 0 3 1 4 3l3 8 6 3v10l-8 2v4c0 6-5 9-11 9H21C13 51 8 46 8 38Z"/></svg>`;
+  const heroRight = t.heroSrc
+    ? `<img src="${t.heroSrc}" alt="Hero" style="width:100%;height:260px;object-fit:cover;border-radius:12px">`
+    : `<div class="card"><p>Hero image placeholder</p></div>`;
 
-  const theme = data.theme ?? {
-    background: '#f5f7f6',
-    card: '#ffffff',
-    text: '#18241d',
-    headline: '#0b1f16',
-    footerText: '#c9e6da',
-    accent: '#0f8a5f',
-    headerBg: '#ffffff',
-    headerText: '#0b1f16',
-    buttonText: '#ffffff',
-    underlineLinks: true,
-  }
+  const links = (input.links || []).map(l => {
+    const target = l.external ? ` target="_blank" rel="noopener"` : '';
+    return `<li><a href="${esc(l.href)}"${target}>${esc(l.label)}</a></li>`;
+  }).join('');
 
-  const links = data.links ?? []
-  const members = data.members ?? []
-  const bullets = data.bullets ?? []
-  const showTierHeadings = data.showTierHeadings ?? true
+  const members = (input.members || []).map(m => {
+    const pic = m.img || 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=1200&auto=format&fit=crop';
+    return `<article class="person"><img src="${pic}">
+      <div class="info"><h3>${esc(m.name)}</h3><div class="role">${esc(m.role || '')}</div></div></article>`;
+  }).join('');
 
-  // Build sections
-  const LINKS_LIST = links
-    .map(
-      (l) =>
-        `<li><a href="${esc(l.href)}"${
-          l.external ? ' target="_blank" rel="noopener"' : ''
-        }>${esc(l.label)}</a></li>`
-    )
-    .join('')
+  const outreach = (input.outreach || []).map(c => `
+    <div class="card">
+      ${c.img ? `<img src="${c.img}" style="width:100%;height:160px;object-fit:cover;border-radius:12px;margin-bottom:.6rem">` : ''}
+      <h3>${esc(c.title)}</h3><p>${esc(c.text || '')}</p>
+    </div>`
+  ).join('');
 
-  const memberCards = members
-    .map(
-      (m) => `
-      <article class="person">
-        ${m.img ? `<img src="${esc(m.img)}">` : ''}
-        <div class="info"><h3>${esc(m.name)}</h3><div class="role">${esc(m.role ?? '')}</div></div>
-      </article>`
-    )
-    .join('')
+  const resources = (input.resources || []).map(c => `
+    <div class="card">
+      ${c.img ? `<img src="${c.img}" style="width:100%;height:160px;object-fit:cover;border-radius:12px;margin-bottom:.6rem">` : ''}
+      <h3>${esc(c.title)}</h3><p>${esc(c.text || '')}</p>
+    </div>`
+  ).join('');
 
-  const sponsorRows = [
-    ['Platinum', data.sponsors?.platinum ?? []],
-    ['Gold', data.sponsors?.gold ?? []],
-    ['Silver', data.sponsors?.silver ?? []],
-    ['Bronze', data.sponsors?.bronze ?? []],
-  ]
-    .map(([tier, list]) =>
-      (showTierHeadings ? `<h3 style="text-align:center;margin:.4rem 0 .6rem;font-weight:800;color:#37574a">${tier}</h3>` : '') +
-      sponsorRow(String(tier), list as any, theme.card)
-    )
-    .join('')
+  const bullets = (input.bullets || []).map(b => `<li>${esc(b)}</li>`).join('');
 
-  const location = [t.city, t.state].filter(Boolean).join(', ')
-  const teamTitle =
-    t.number && String(t.number).trim()
-      ? `${t.name} • ${t.number}`
-      : t.name
+  const founding = t.founding || new Date().getFullYear();
+  const yearsJS = `document.getElementById('years').textContent = Math.max(1, new Date().getFullYear() - (${founding}) + 1);`;
 
-  const favicon = t.favicon ? `<link rel="icon" href="${esc(t.favicon)}">` : ''
-
-  const logoHTML = t.logo
-    ? `<img src="${esc(t.logo)}" alt="Team Logo" style="height:38px;border-radius:8px">`
-    : `<svg viewBox="0 0 64 64" style="height:36px"><path fill="var(--green)" d="M8 38c0-9 8-16 22-16 9 0 12-5 15-10 2 0 3 1 4 3l3 8 6 3v10l-8 2v4c0 6-5 9-11 9H21C13 51 8 46 8 38Z"/></svg>`
-
-  const heroRight = t.hero
-    ? `<img src="${esc(t.hero)}" alt="Hero" style="width:100%;height:260px;object-fit:cover;border-radius:12px">`
-    : `<div class="card"><p>Hero image placeholder</p></div>`
-
-  // Final HTML (no client-side bundling; safe for Edge/Node)
-  return `<!doctype html>
-<meta charset="utf-8">
-<title>${esc(teamTitle)}</title>
-${favicon}
+  return (
+`<!doctype html><meta charset="utf-8">
+<title>${esc(teamName)}${teamNumber}</title>
+${favLink}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -183,13 +179,10 @@ header{position:sticky;top:0;background:var(--headerBg);box-shadow:0 1px 0 rgba(
 .hero{background:linear-gradient(180deg,#ffffff,#f3faf6)}
 .hero .container{display:grid;grid-template-columns:1.15fr .85fr;gap:2rem;align-items:center;padding:3.6rem 0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:1rem}
-.grid{display:grid;gap:1rem}
-.cols-2{grid-template-columns:1fr 1fr}
-.cols-3{grid-template-columns:repeat(3,1fr)}
+.grid{display:grid;gap:1rem}.cols-2{grid-template-columns:1fr 1fr}.cols-3{grid-template-columns:repeat(3,1fr)}
 .people{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
 .person{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
-.person img{width:100%;height:180px;object-fit:cover}
-.person .info{padding:.8rem}
+.person img{width:100%;height:180px;object-fit:cover}.person .info{padding:.8rem}
 footer{background:${theme.headline};color:var(--foot);padding:2rem 0;margin-top:2rem}
 @media (max-width:940px){
   .hero .container{grid-template-columns:1fr}
@@ -202,7 +195,7 @@ footer{background:${theme.headline};color:var(--foot);padding:2rem 0;margin-top:
   <nav class="container nav">
     <div class="brand">
       ${logoHTML}
-      <span>${esc(teamTitle)}</span>
+      <span>${esc(teamName)}${teamNumber}</span>
     </div>
     <a class="btn" href="#contact">Contact</a>
   </nav>
@@ -212,11 +205,11 @@ footer{background:${theme.headline};color:var(--foot);padding:2rem 0;margin-top:
   <section class="hero">
     <div class="container">
       <div>
-        <span class="muted">${esc(t.school ?? '')} ${location ? '• ' + esc(location) : ''} • FTC</span>
-        <h1>${esc(t.name)}${t.number ? ' ' + esc(t.number) : ''}</h1>
+        <span class="muted">${esc(schoolLoc)} • FTC</span>
+        <h1>${esc(teamName)}${t.number ? ' ' + esc(t.number) : ''}</h1>
         <div class="grid cols-3" style="margin-top:1rem">
           <div class="card"><div style="font-size:1.6rem;font-weight:800;color:var(--green)" id="years">1</div><div>Years Competing</div></div>
-          <div class="card"><div style="font-size:1.6rem;font-weight:800;color:var(--green)}">${members.length}</div><div>Active Members</div></div>
+          <div class="card"><div style="font-size:1.6rem;font-weight:800;color:var(--green)}">${(input.members || []).length}</div><div>Active Members</div></div>
           <div class="card"><div style="font-size:1.6rem;font-weight:800;color:var(--green)">∞</div><div>Iterations</div></div>
         </div>
       </div>
@@ -226,41 +219,53 @@ footer{background:${theme.headline};color:var(--foot);padding:2rem 0;margin-top:
 
   <section id="about">
     <div class="container grid cols-2">
-      <div class="card"><h2>About</h2><ul>${LINKS_LIST}</ul></div>
-      <div class="card"><h2>Season</h2><ul>${
-        bullets.map((b) => `<li>${esc(b)}</li>`).join('') || '<li>Updates coming soon…</li>'
-      }</ul></div>
+      <div class="card"><h2>About</h2><ul>${links}</ul></div>
+      <div class="card"><h2>Season</h2><ul>${bullets}</ul></div>
     </div>
   </section>
 
-  ${
-    memberCards
-      ? `<section id="team"><div class="container"><h2>Team</h2><div class="people">${memberCards}</div></div></section>`
-      : ''
-  }
+  <section id="team">
+    <div class="container">
+      <h2>Team</h2>
+      <div class="people">${members}</div>
+    </div>
+  </section>
 
   <section id="sponsors">
     <div class="container">
       <h2>Sponsors</h2>
-      ${sponsorRows || '<p>Thanks to all our supporters!</p>'}
+      ${tierRows(
+        theme,
+        {
+          platinum: input.sponsors?.platinum ?? [],
+          gold: input.sponsors?.gold ?? [],
+          silver: input.sponsors?.silver ?? [],
+          bronze: input.sponsors?.bronze ?? [],
+        },
+        !!input.showTierHeadings
+      )}
+    </div>
+  </section>
+
+  <section id="outreach">
+    <div class="container">
+      <h2>Outreach</h2>
+      <div class="grid cols-3">${outreach}</div>
+    </div>
+  </section>
+
+  <section id="resources">
+    <div class="container">
+      <h2>Resources</h2>
+      <div class="grid cols-3">${resources}</div>
     </div>
   </section>
 </main>
 
-<footer>
-  <div class="container">© <span id="y"></span> ${esc(t.name)}</div>
-</footer>
-
+<footer><div class="container">© <span id="y"></span> ${esc(teamName)}</div></footer>
 <script>
   document.getElementById("y").textContent = new Date().getFullYear();
-  (function(){
-    var founding = ${Number.isFinite(data.team?.founding) ? Number(data.team!.founding) : 'null'};
-    if (founding) {
-      var years = Math.max(1, new Date().getFullYear() - founding + 1);
-      var el = document.getElementById("years");
-      if (el) el.textContent = years;
-    }
-  })();
+  ${yearsJS}
 </script>
-`
+`);
 }
