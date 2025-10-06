@@ -1,5 +1,4 @@
 // app/sites/[id]/page.tsx
-import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
@@ -8,7 +7,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-// ----- Types -----
 type SiteRow = {
   id: string
   name: string
@@ -18,35 +16,13 @@ type SiteRow = {
 }
 
 type LinkItem = { label: string; href: string; external?: boolean }
-
+type Sponsors = { platinum: string[]; gold: string[]; silver: string[]; bronze: string[] }
 type Theme = {
-  background?: string
-  card?: string
-  text?: string
-  headline?: string
-  footerText?: string
-  accent?: string
-  headerBg?: string
-  headerText?: string
-  buttonText?: string
-  underlineLinks?: boolean
+  background: string; card: string; text: string; headline: string;
+  footerText: string; accent: string; headerBg: string; headerText: string;
+  buttonText: string; underlineLinks: boolean;
 }
-
-type Sponsors = {
-  platinum: string[]
-  gold: string[]
-  silver: string[]
-  bronze: string[]
-}
-
-type TeamBlock = {
-  name?: string
-  number?: string
-  school?: string
-  city?: string
-  state?: string
-}
-
+type TeamBlock = { name: string; number: string; school: string; city: string; state: string }
 type SiteData = {
   team: TeamBlock
   links: LinkItem[]
@@ -61,7 +37,6 @@ type SiteContentRow = {
   updated_at: string
 }
 
-// ----- Helpers -----
 function decode<T>(v: FormDataEntryValue | null, fallback: T): T {
   try {
     if (typeof v !== 'string' || v.trim() === '') return fallback
@@ -93,12 +68,8 @@ export default async function ManageSitePage({
     {
       cookies: {
         get: (n: string) => cookieStore.get(n)?.value,
-        set: (n: string, v: string, o: CookieOptions) => {
-          try { cookieStore.set(n, v, o) } catch {}
-        },
-        remove: (n: string, o: CookieOptions) => {
-          try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {}
-        },
+        set: (n: string, v: string, o: CookieOptions) => { try { cookieStore.set(n, v, o) } catch {} },
+        remove: (n: string, o: CookieOptions) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
       },
     }
   )
@@ -107,7 +78,7 @@ export default async function ManageSitePage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Load site (RLS enforces membership)
+  // Load the site (RLS enforces membership via sites.team_id)
   const { data: site, error: sErr } = await supabase
     .from('sites')
     .select('id,name,subdomain,team_id,vercel_url')
@@ -116,11 +87,14 @@ export default async function ManageSitePage({
 
   if (sErr || !site) notFound()
 
-  // Load content (if exists)
+  // Capture a non-null siteId for use inside server actions (avoids TS "possibly null")
+  const siteId = site.id
+
+  // Load or create (virtually) content row
   const { data: content } = await supabase
     .from('site_content')
     .select('id,site_id,data,updated_at')
-    .eq('site_id', site.id)
+    .eq('site_id', siteId)
     .maybeSingle<SiteContentRow>()
 
   const data: SiteData = content?.data ?? {
@@ -152,19 +126,17 @@ export default async function ManageSitePage({
       {
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
-          set: (n: string, v: string, o: CookieOptions) => {
-            try { cookieStore.set(n, v, o) } catch {}
-          },
-          remove: (n: string, o: CookieOptions) => {
-            try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {}
-          },
+          set: (n: string, v: string, o: CookieOptions) => { try { cookieStore.set(n, v, o) } catch {} },
+          remove: (n: string, o: CookieOptions) => { try { cookieStore.set(n, '', { ...o, maxAge: 0 }) } catch {} },
         },
       }
     )
 
+    // Auth again on the server action
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
+    // Basic site fields
     const siteName = (formData.get('site_name') as string | null)?.trim() ?? ''
     const subdomain = (formData.get('site_subdomain') as string | null)?.trim().toLowerCase() ?? ''
 
@@ -172,6 +144,7 @@ export default async function ManageSitePage({
       redirect(`/sites/${params.id}?error=${encodeURIComponent('Site name and subdomain are required')}`)
     }
 
+    // Content blobs (JSON) from the form
     const team = decode<TeamBlock>(formData.get('team_json'), data.team)
     const theme = decode<Theme>(formData.get('theme_json'), data.theme)
     const links = decode<LinkItem[]>(formData.get('links_json'), data.links)
@@ -181,17 +154,17 @@ export default async function ManageSitePage({
     const { error: siteErr } = await supabase
       .from('sites')
       .update({ name: siteName, subdomain })
-      .eq('id', params.id)
+      .eq('id', siteId)
 
     if (siteErr) {
       redirect(`/sites/${params.id}?error=${encodeURIComponent(siteErr.message)}`)
     }
 
-    // Upsert content
+    // Upsert site_content
     if (content?.id) {
       const { error: upErr } = await supabase
         .from('site_content')
-        .update({ data: { team, theme, links, sponsors } satisfies SiteData })
+        .update({ data: { team, theme, links, sponsors } as SiteData })
         .eq('id', content.id)
 
       if (upErr) {
@@ -200,7 +173,7 @@ export default async function ManageSitePage({
     } else {
       const { error: insErr } = await supabase
         .from('site_content')
-        .insert({ site_id: site.id, data: { team, theme, links, sponsors } as SiteData })
+        .insert({ site_id: siteId, data: { team, theme, links, sponsors } as SiteData })
 
       if (insErr) {
         redirect(`/sites/${params.id}?error=${encodeURIComponent(insErr.message)}`)
@@ -223,45 +196,21 @@ export default async function ManageSitePage({
         <div>
           <h1 style={{ margin: 0 }}>Manage Site</h1>
           <p style={{ margin: '6px 0 0', color: '#475569' }}>
-            Site ID: <code>{site.id}</code>{' '}
-            {liveUrl && <>· Live: <a href={liveUrl} target="_blank" rel="noreferrer">{liveUrl}</a></>}
+            Site ID: <code>{siteId}</code> {liveUrl && <>· Live: <a href={liveUrl} target="_blank" rel="noreferrer">{liveUrl}</a></>}
           </p>
         </div>
-        <Link
-          href="/dashboard"
-          style={{ textDecoration: 'none', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: 8 }}
-        >
+        <a href="/dashboard" style={{ textDecoration: 'none', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: 8 }}>
           ← Back to dashboard
-        </Link>
+        </a>
       </header>
 
       {!!searchParams?.saved && (
-        <p
-          role="status"
-          style={{
-            marginTop: 12,
-            padding: '8px 10px',
-            borderRadius: 8,
-            background: '#ecfdf5',
-            border: '1px solid #10b981',
-            color: '#065f46'
-          }}
-        >
+        <p role="status" style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, background: '#ecfdf5', border: '1px solid #10b981', color: '#065f46' }}>
           Changes saved.
         </p>
       )}
       {!!searchParams?.error && (
-        <p
-          role="alert"
-          style={{
-            marginTop: 12,
-            padding: '8px 10px',
-            borderRadius: 8,
-            background: '#fef2f2',
-            border: '1px solid #fca5a5',
-            color: '#991b1b'
-          }}
-        >
+        <p role="alert" style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b' }}>
           {decodeURIComponent(searchParams.error)}
         </p>
       )}
@@ -329,9 +278,7 @@ export default async function ManageSitePage({
         {/* Links */}
         <section style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#fff' }}>
           <h2 style={{ marginTop: 0 }}>Quick Links</h2>
-          <p style={{ marginTop: 0, color: '#64748b' }}>
-            Array like: <code>[{'{ "label": "FTC", "href": "https://firstinspires.org/robotics/ftc" }'}]</code>
-          </p>
+          <p style={{ marginTop: 0, color: '#64748b' }}>Array like: <code>[{"{ \"label\": \"FTC\", \"href\": \"https://firstinspires.org/robotics/ftc\" }"}]</code></p>
           <label style={{ display: 'grid', gap: 6 }}>
             <span>Links JSON</span>
             <textarea
@@ -347,7 +294,7 @@ export default async function ManageSitePage({
         <section style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#fff' }}>
           <h2 style={{ marginTop: 0 }}>Sponsors</h2>
           <p style={{ marginTop: 0, color: '#64748b' }}>
-            Object with tiers: <code>{'{ "platinum": [], "gold": [], "silver": [], "bronze": [] }'}</code>
+            Object with tiers: <code>{"{ \"platinum\": [], \"gold\": [], \"silver\": [], \"bronze\": [] }"}</code>
           </p>
           <label style={{ display: 'grid', gap: 6 }}>
             <span>Sponsors JSON</span>
@@ -364,23 +311,13 @@ export default async function ManageSitePage({
           <button
             type="submit"
             formAction={save}
-            style={{
-              padding: '10px 14px',
-              border: '1px solid #0b6',
-              background: '#0b6',
-              color: '#fff',
-              borderRadius: 8,
-              cursor: 'pointer'
-            }}
+            style={{ padding: '10px 14px', border: '1px solid #0b6', background: '#0b6', color: '#fff', borderRadius: 8, cursor: 'pointer' }}
           >
             Save changes
           </button>
-          <Link
-            href="/dashboard"
-            style={{ padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, textDecoration: 'none' }}
-          >
+          <a href="/dashboard" style={{ padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, textDecoration: 'none' }}>
             Cancel
-          </Link>
+          </a>
         </div>
       </form>
     </main>
