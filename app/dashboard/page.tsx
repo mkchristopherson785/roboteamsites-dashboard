@@ -28,22 +28,16 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, value, options);
-          } catch {}
+          try { cookieStore.set(name, value, options); } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, "", { ...options, maxAge: 0 });
-          } catch {}
+          try { cookieStore.set(name, "", { ...options, maxAge: 0 }); } catch {}
         },
       },
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: teamsRaw } = await supabase
@@ -57,6 +51,7 @@ export default async function DashboardPage() {
   const sites: Site[] = sitesRaw ?? [];
 
   const isEmpty = teams.length === 0 && sites.length === 0;
+  const publicHost = process.env.NEXT_PUBLIC_PUBLIC_HOST;
 
   return (
     <main
@@ -77,12 +72,12 @@ export default async function DashboardPage() {
       >
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ color: "#888", margin: 0 }}>build: v11</p>
+          <p style={{ color: "#888", margin: 0 }}>build: v12</p>
           <p style={{ margin: "6px 0 0" }}>
             Signed in as <b>{user.email}</b>
           </p>
         </div>
-        <a
+        <Link
           href="/auth/signout"
           style={{
             padding: "8px 12px",
@@ -92,7 +87,7 @@ export default async function DashboardPage() {
           }}
         >
           Sign out
-        </a>
+        </Link>
       </header>
 
       {isEmpty && (
@@ -161,10 +156,7 @@ export default async function DashboardPage() {
           }}
         >
           <h2 style={{ margin: "0 0 8px" }}>Your Teams</h2>
-          <Link
-            href="/teams/new"
-            style={{ fontWeight: 600, textDecoration: "none" }}
-          >
+          <Link href="/teams/new" style={{ fontWeight: 600, textDecoration: "none" }}>
             + New Team
           </Link>
         </div>
@@ -204,10 +196,7 @@ export default async function DashboardPage() {
                       Team ID: {t.id}
                     </div>
                   </div>
-                  <Link
-                    href={`/teams/${t.id}`}
-                    style={{ textDecoration: "none" }}
-                  >
+                  <Link href={`/teams/${t.id}`} style={{ textDecoration: "none" }}>
                     Open →
                   </Link>
                 </div>
@@ -226,10 +215,7 @@ export default async function DashboardPage() {
           }}
         >
           <h2 style={{ margin: "0 0 8px" }}>Your Sites</h2>
-          <Link
-            href="/sites/new"
-            style={{ fontWeight: 600, textDecoration: "none" }}
-          >
+          <Link href="/sites/new" style={{ fontWeight: 600, textDecoration: "none" }}>
             + New Site
           </Link>
         </div>
@@ -247,41 +233,56 @@ export default async function DashboardPage() {
               gap: 12,
             }}
           >
-            {sites.map((s) => (
-              <li
-                key={s.id}
-                style={{
-                  border: "1px solid #e6e6e6",
-                  borderRadius: 12,
-                  padding: 12,
-                }}
-              >
-                <div
+            {sites.map((s) => {
+              const subdomainUrl = publicHost ? `https://${s.subdomain}.${publicHost}` : null;
+              return (
+                <li
+                  key={s.id}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
+                    border: "1px solid #e6e6e6",
+                    borderRadius: 12,
+                    padding: 12,
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>
-                      Subdomain: <code>{s.subdomain}</code> · Team:{" "}
-                      <code>{s.team_id}</code>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{s.name}</div>
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        Subdomain: <code>{s.subdomain}</code> · Team:{" "}
+                        <code>{s.team_id}</code>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      {/* Public views */}
+                      <Link href={`/sites/${s.id}`} prefetch={false}>
+                        View public
+                      </Link>
+                      {subdomainUrl && (
+                        <a href={subdomainUrl} target="_blank" rel="noreferrer">
+                          {s.subdomain}.{publicHost}
+                        </a>
+                      )}
+                      {s.vercel_url && (
+                        <a href={s.vercel_url} target="_blank" rel="noreferrer">
+                          Vercel
+                        </a>
+                      )}
+                      {/* Editor */}
+                      <Link href={`/sites/${s.id}/edit`} style={{ fontWeight: 600 }}>
+                        Manage →
+                      </Link>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 12 }}>
-                    {s.vercel_url && (
-                      <a href={s.vercel_url} target="_blank" rel="noreferrer">
-                        View Live
-                      </a>
-                    )}
-                    <Link href={`/sites/${s.id}`}>Manage →</Link>
-                  </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
