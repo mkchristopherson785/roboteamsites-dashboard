@@ -40,3 +40,41 @@ a {
     color-scheme: dark;
   }
 }
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.02s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn:active { transform: translateY(1px); }
+
+/* variants */
+.btn-muted {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.btn-muted:hover { background: #e2e8f0; }
+
+.btn-primary {
+  background: #0b6;
+  border-color: #0b6;
+  color: #fff;
+}
+.btn-primary:hover { background: #0aa062; border-color: #0aa062; }
+
+.btn-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+.btn-danger:hover { background: #dc2626; border-color: #dc2626; }
