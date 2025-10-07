@@ -29,16 +29,22 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try { cookieStore.set(name, value, options); } catch {}
+          try {
+            cookieStore.set(name, value, options);
+          } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try { cookieStore.set(name, "", { ...options, maxAge: 0 }); } catch {}
+          try {
+            cookieStore.set(name, "", { ...options, maxAge: 0 });
+          } catch {}
         },
       },
-    },
+    }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: teamsRaw } = await supabase
@@ -53,6 +59,43 @@ export default async function DashboardPage() {
 
   const isEmpty = teams.length === 0 && sites.length === 0;
   const publicHost = process.env.NEXT_PUBLIC_PUBLIC_HOST;
+
+  // --- Shared button styles for consistent sizing ---
+  const btnBase = {
+    padding: "6px 12px",
+    borderRadius: 6,
+    textDecoration: "none",
+    fontSize: 14,
+    display: "inline-block",
+  } as const;
+
+  const btnLight = {
+    ...btnBase,
+    background: "#f1f5f9",
+    border: "1px solid #cbd5e1",
+    color: "#0f172a",
+  } as const;
+
+  const btnPrimary = {
+    ...btnBase,
+    background: "#0b6",
+    border: "1px solid #0b6",
+    color: "#fff",
+  } as const;
+
+  const btnDanger = {
+    ...btnBase,
+    background: "#ef4444",
+    border: "1px solid #dc2626",
+    color: "#fff",
+  } as const;
+
+  const btnGhost = {
+    ...btnBase,
+    border: "1px solid #ddd",
+    color: "#0f172a",
+    background: "transparent",
+  } as const;
 
   return (
     <main
@@ -81,15 +124,7 @@ export default async function DashboardPage() {
             Signed in as <b>{user.email}</b>
           </p>
         </div>
-        <Link
-          href="/auth/signout"
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/auth/signout" style={btnGhost}>
           Sign out
         </Link>
       </header>
@@ -110,37 +145,17 @@ export default async function DashboardPage() {
             them manually, or let us create a starter team and site for you.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              href="/teams/new"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                textDecoration: "none",
-              }}
-            >
+            <Link href="/teams/new" style={btnGhost}>
               + New Team
             </Link>
-            <Link
-              href="/sites/new"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                textDecoration: "none",
-              }}
-            >
+            <Link href="/sites/new" style={btnGhost}>
               + New Site
             </Link>
-            <form action="/api/bootstrap" method="post">
+            <form action="/api/bootstrap" method="post" style={{ display: "inline" }}>
               <button
                 type="submit"
                 style={{
-                  padding: "8px 12px",
-                  border: "1px solid #0b6",
-                  background: "#0b6",
-                  color: "#fff",
-                  borderRadius: 8,
+                  ...btnPrimary,
                   cursor: "pointer",
                 }}
               >
@@ -201,17 +216,7 @@ export default async function DashboardPage() {
                       Team ID: {t.id}
                     </div>
                   </div>
-                  <Link
-                    href={`/teams/${t.id}`}
-                    style={{
-                      background: "#0ea5e9",
-                      color: "#fff",
-                      padding: "6px 12px",
-                      borderRadius: 6,
-                      textDecoration: "none",
-                      fontSize: 14,
-                    }}
-                  >
+                  <Link href={`/teams/${t.id}`} style={{ ...btnLight }}>
                     Open
                   </Link>
                 </div>
@@ -250,7 +255,9 @@ export default async function DashboardPage() {
             }}
           >
             {sites.map((s) => {
-              const subdomainUrl = publicHost ? `https://${s.subdomain}.${publicHost}` : null;
+              const subdomainUrl = publicHost
+                ? `https://${s.subdomain}.${publicHost}`
+                : null;
               return (
                 <li
                   key={s.id}
@@ -289,15 +296,7 @@ export default async function DashboardPage() {
                         href={`/sites/${s.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        style={{
-                          padding: "6px 12px",
-                          background: "#f1f5f9",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          textDecoration: "none",
-                          color: "#0f172a",
-                          fontSize: 14,
-                        }}
+                        style={{ ...btnLight }}
                       >
                         View Public
                       </a>
@@ -307,36 +306,20 @@ export default async function DashboardPage() {
                           href={subdomainUrl}
                           target="_blank"
                           rel="noreferrer"
-                          style={{
-                            padding: "6px 12px",
-                            background: "#f1f5f9",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: 6,
-                            textDecoration: "none",
-                            color: "#0f172a",
-                            fontSize: 14,
-                          }}
+                          style={{ ...btnLight }}
                         >
                           Visit
                         </a>
                       )}
 
-                      <Link
-                        href={`/sites/${s.id}/edit`}
-                        style={{
-                          padding: "6px 12px",
-                          background: "#0b6",
-                          border: "1px solid #0b6",
-                          borderRadius: 6,
-                          textDecoration: "none",
-                          color: "#fff",
-                          fontSize: 14,
-                        }}
-                      >
+                      <Link href={`/sites/${s.id}/edit`} style={{ ...btnPrimary }}>
                         Manage
                       </Link>
 
-                      <DeleteSiteButton siteId={s.id} siteName={s.name} />
+                      {/* Delete action matches size & style */}
+                      <span style={{ display: "inline-flex" }}>
+                        <DeleteSiteButton siteId={s.id} siteName={s.name} />
+                      </span>
                     </div>
                   </div>
                 </li>
