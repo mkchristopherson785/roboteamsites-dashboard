@@ -66,6 +66,7 @@ export default async function DashboardPage() {
     borderRadius: 6,
     textDecoration: "none",
     fontSize: 14,
+    lineHeight: "20px",   // ✅ add this
     display: "inline-block",
   } as const;
 
