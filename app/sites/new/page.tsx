@@ -12,14 +12,14 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 // ---- Helpers ----
-function errTo(path: string, msg: string) {
+function errTo(path: string, msg: string): never {
   const p = new URLSearchParams({ error: msg });
   redirect(`${path}?${p.toString()}`);
 }
 const SUBDOMAIN_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED = new Set([
-  "www","app","admin","api","assets","static","vercel","docs","help","support",
-  "login","dashboard","cdn","img","images","app1","dev","test","staging","prod",
+  "www", "app", "admin", "api", "assets", "static", "vercel", "docs", "help", "support",
+  "login", "dashboard", "cdn", "img", "images", "app1", "dev", "test", "staging", "prod",
 ]);
 const normalizeSubdomain = (s: string) => s.trim().toLowerCase();
 
@@ -133,10 +133,10 @@ export default async function NewSitePage({
       .select("id")
       .single();
 
-    if (error || !site?.id) {
-      errTo("/sites/new", error?.message ?? "Failed to create site");
-    }
-    const siteId = site.id;
+    if (error) errTo("/sites/new", error.message);
+    if (!site) errTo("/sites/new", "Failed to create site");
+
+    const siteId = site.id; // ✅ narrowed by the checks above
 
     // Seed default content
     const seed = {
@@ -173,19 +173,32 @@ export default async function NewSitePage({
     <AdminLayout
       title="Create a Site"
       rightActions={
-        <Link href="/dashboard" style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}>
+        <Link
+          href="/dashboard"
+          style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+        >
           Back to dashboard
         </Link>
       }
     >
       {!!searchParams?.error && (
-        <p role="alert" style={{ background: "#fee", border: "1px solid #fbb", color: "#900", padding: "8px 10px", borderRadius: 8, marginTop: 12 }}>
+        <p
+          role="alert"
+          style={{
+            background: "#fee",
+            border: "1px solid #fbb",
+            color: "#900",
+            padding: "8px 10px",
+            borderRadius: 8,
+            marginTop: 12,
+          }}
+        >
           {decodeURIComponent(searchParams.error)}
         </p>
       )}
-    
+
       <form action={createSite} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-          <label style={{ display: "grid", gap: 6 }}>
+        <label style={{ display: "grid", gap: 6 }}>
           <span>Site Name</span>
           <input
             name="name"
