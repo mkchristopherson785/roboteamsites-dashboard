@@ -1,174 +1,148 @@
 // app/teams/new/page.tsx
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import AdminLayout from "@/components/AdminLayout";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export default async function NewTeamPage({
-  searchParams,
-}: {
-  searchParams?: { error?: string };
-}) {
-  async function createTeam(formData: FormData): Promise<void> {
-    "use server";
-
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get: (name: string) => cookieStore.get(name)?.value,
-          set: (name: string, value: string, options: CookieOptions) => {
-            try {
-              cookieStore.set(name, value, options);
-            } catch {}
-          },
-          remove: (name: string, options: CookieOptions) => {
-            try {
-              cookieStore.set(name, "", { ...options, maxAge: 0 });
-            } catch {}
-          },
+async function getServerSupabase() {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (n: string) => cookieStore.get(n)?.value,
+        set: (n: string, v: string, o: CookieOptions) => {
+          try { cookieStore.set(n, v, o); } catch {}
+        },
+        remove: (n: string, o: CookieOptions) => {
+          try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
         },
       },
-    );
+    }
+  );
+}
 
+export default async function NewTeamPage({
+  searchParams,
+}: { searchParams?: { error?: string } }) {
+  const supabase = await getServerSupabase();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  async function createTeam(formData: FormData) {
+    "use server";
+
+    const supabase = await getServerSupabase();
     const {
       data: { user },
-      error: userErr,
     } = await supabase.auth.getUser();
-    if (userErr || !user) redirect("/login");
+    if (!user) redirect("/login");
 
-    const raw = (formData.get("name") as string | null) ?? "";
-    const name = raw.trim();
-    if (!name) redirect("/teams/new?error=Team%20name%20is%20required");
+    const name = (formData.get("name") as string | null)?.trim() ?? "";
+    if (!name) {
+      redirect(`/teams/new?${new URLSearchParams({ error: "Team name is required" }).toString()}`);
+    }
 
-    // 1) create team with owner=user.id
-    const { data: team, error: tErr } = await supabase
+    // Insert team; adjust columns to match your schema.
+    const { data, error } = await supabase
       .from("teams")
-      .insert({ name, owner: user.id })
+      .insert({ name }) // add owner: user.id if your schema needs it
       .select("id")
       .single();
 
-    if (tErr || !team) {
-      redirect(
-        "/teams/new?error=" +
-          encodeURIComponent(tErr?.message ?? "Failed to create team"),
-      );
+    if (error || !data?.id) {
+      redirect(`/teams/new?${new URLSearchParams({ error: error?.message ?? "Failed to create team" }).toString()}`);
     }
 
-    // ✅ Narrow before use
-    const teamId = team?.id;
-    if (!teamId) {
-      redirect(
-        "/teams/new?error=" + encodeURIComponent("Team created but missing id"),
-      );
-    }
-
-    // 2) add membership as owner (ignore conflict if already exists)
-    const { error: mErr } = await supabase
-      .from("team_members")
-      .upsert(
-        { team_id: teamId, user_id: user.id, role: "owner" },
-        { onConflict: "team_id,user_id", ignoreDuplicates: true },
-      );
-
-    if (mErr) {
-      // Not fatal — inform user but allow progress
-      redirect(
-        "/teams/new?error=" +
-          encodeURIComponent(
-            "Team created, but adding owner failed: " + mErr.message,
-          ),
-      );
-    }
-
-    // Success
-    redirect("/dashboard");
+    redirect(`/teams/${data.id}`);
   }
 
   return (
     <AdminLayout
-      title="Edit Site"
-      subtitle={
-        <span style={{ color: "#475569" }}>
-          Site ID: <code>{siteId}</code>
-        </span>
-      }
+      title="Create a Team"
+      subtitle={<span style={{ color: "#475569" }}>Add a new team to manage members and sites.</span>}
       rightActions={
         <Link
           href="/dashboard"
-          style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 8, textDecoration: "none" }}
+          style={{
+            textDecoration: "none",
+            border: "1px solid #e2e8f0",
+            padding: "8px 12px",
+            borderRadius: 8,
+          }}
         >
           Back to dashboard
         </Link>
       }
     >
-      {/* keep your status banners & form exactly as-is here */}
-    </AdminLayout>
-  );
-  
-  return (
-    <main
-      style={{ maxWidth: 520, margin: "3rem auto", fontFamily: "system-ui" }}
-    >
-      <h1 style={{ marginBottom: 8 }}>Create a Team</h1>
-      <p style={{ marginTop: 0, color: "#555" }}>
-        You’ll be the owner. You can invite members later.
-      </p>
-
       {!!searchParams?.error && (
         <p
+          role="alert"
           style={{
-            background: "#fee",
-            border: "1px solid #fbb",
-            color: "#900",
+            background: "#fef2f2",
+            border: "1px solid #fca5a5",
+            color: "#991b1b",
             padding: "8px 10px",
             borderRadius: 8,
+            marginTop: 12,
           }}
         >
           {decodeURIComponent(searchParams.error)}
         </p>
       )}
 
-      <form
-        action={createTeam}
-        style={{ display: "grid", gap: 12, marginTop: 16 }}
-      >
+      <form action={createTeam} style={{ display: "grid", gap: 12, marginTop: 12, maxWidth: 520 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span>Team name</span>
           <input
             name="name"
-            type="text"
             required
-            placeholder="e.g., Robo Rhinos"
+            placeholder="e.g. RoboRaptors"
             style={{
               padding: 10,
-              fontSize: 16,
-              border: "1px solid #ddd",
+              border: "1px solid #cbd5e1",
               borderRadius: 8,
+              fontSize: 16,
             }}
           />
         </label>
-        <button
-          type="submit"
-          style={{
-            padding: "10px 12px",
-            fontSize: 16,
-            border: "1px solid #0b6",
-            background: "#0b6",
-            color: "#fff",
-            borderRadius: 8,
-          }}
-        >
-          Create Team
-        </button>
+
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            type="submit"
+            style={{
+              padding: "10px 14px",
+              border: "1px solid #0b6",
+              background: "#0b6",
+              color: "#fff",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Create Team
+          </button>
+          <Link
+            href="/dashboard"
+            style={{
+              padding: "10px 14px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              textDecoration: "none",
+            }}
+          >
+            Cancel
+          </Link>
+        </div>
       </form>
-    </main>
+    </AdminLayout>
   );
 }
