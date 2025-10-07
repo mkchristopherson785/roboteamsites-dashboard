@@ -119,7 +119,7 @@ export default async function EditSitePage({
 
   const siteId = site.id;
 
-  // Load or create (virtually) content row
+  // Load or create (virtual default) content row
   const { data: content } = await supabase
     .from("site_content")
     .select("id,site_id,data,updated_at")
@@ -245,85 +245,30 @@ export default async function EditSitePage({
       subtitle={
         <span style={{ color: "#475569" }}>
           Site ID: <code>{siteId}</code>
+          {liveUrl ? (
+            <>
+              {" "}· Public:{" "}
+              <Link href={`/sites/${siteId}`} target="_blank">
+                View public page
+              </Link>
+              {site.subdomain && (
+                <>
+                  {" "}|{" "}
+                  <Link href={`/site/${site.subdomain}`} target="_blank">
+                    View by subdomain
+                  </Link>
+                </>
+              )}
+              {" "}|{" "}
+              <a href={`/api/sites/${siteId}/export`} target="_blank" rel="noreferrer">
+                Download static HTML
+              </a>
+            </>
+          ) : null}
         </span>
       }
       rightActions={<Link href="/dashboard">Back to dashboard</Link>}
     >
-      <form action={saveSite} style={{ display: "grid", gap: 12 }}>
-        {/* ...your inputs... */}
-        <button
-          type="submit"
-          style={{
-            padding: "8px 12px",
-            border: "1px solid #0b6",
-            background: "#0b6",
-            color: "#fff",
-            borderRadius: 8,
-          }}
-        >
-          Save changes
-        </button>
-      </form>
-    </AdminLayout>
-  );
-      
-  return (
-    <main
-      style={{
-        maxWidth: 1000,
-        margin: "2.5rem auto",
-        fontFamily: "system-ui",
-        lineHeight: 1.45,
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0 }}>Edit Site</h1>
-          <p style={{ margin: "6px 0 0", color: "#475569" }}>
-            Site ID: <code>{siteId}</code>{" "}
-            {liveUrl && (
-              <>
-                · Public:{" "}
-                <Link href={`/sites/${siteId}`} target="_blank">
-                  View public page
-                </Link>
-                {site.subdomain && (
-                  <>
-                    {" "}|{" "}
-                    <Link href={`/site/${site.subdomain}`} target="_blank">
-                      View by subdomain
-                    </Link>
-                  </>
-                )}
-                {" "}|{" "}
-                {/* API download can be a normal <a> since it's not a Next page */}
-                <a href={`/api/sites/${siteId}/export`} target="_blank" rel="noreferrer">
-                  Download static HTML
-                </a>
-              </>
-            )}
-          </p>
-        </div>
-        <Link
-          href="/dashboard"
-          style={{
-            textDecoration: "none",
-            border: "1px solid #e2e8f0",
-            padding: "8px 12px",
-            borderRadius: 8,
-          }}
-        >
-          ← Back to dashboard
-        </Link>
-      </header>
-
       {!!searchParams?.saved && (
         <p
           role="status"
@@ -525,7 +470,6 @@ export default async function EditSitePage({
         <div style={{ display: "flex", gap: 12 }}>
           <button
             type="submit"
-            formAction={save}
             style={{
               padding: "10px 14px",
               border: "1px solid #0b6",
@@ -550,6 +494,6 @@ export default async function EditSitePage({
           </Link>
         </div>
       </form>
-    </main>
+    </AdminLayout>
   );
 }
