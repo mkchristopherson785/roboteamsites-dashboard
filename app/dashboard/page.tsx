@@ -4,6 +4,7 @@ import DeleteSiteButton from "@/components/DeleteSiteButton";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import UpdateProfileName from "@/components/UpdateProfileName";
 
 type Team = { id: string; name: string; created_at: string };
 type Site = {
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
     borderRadius: 6,
     textDecoration: "none",
     fontSize: 14,
-    lineHeight: "20px",   // ✅ add this
+    lineHeight: "20px",
     display: "inline-block",
   } as const;
 
@@ -110,6 +111,7 @@ export default async function DashboardPage() {
         overflowWrap: "break-word",
       }}
     >
+      {/* Header */}
       <header
         style={{
           display: "flex",
@@ -130,6 +132,13 @@ export default async function DashboardPage() {
         </Link>
       </header>
 
+      {/* Profile name editor */}
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ margin: "0 0 8px" }}>Your Profile</h2>
+        <UpdateProfileName redirectTo="/dashboard?saved=1" />
+      </section>
+
+      {/* Empty state */}
       {isEmpty && (
         <section
           style={{
