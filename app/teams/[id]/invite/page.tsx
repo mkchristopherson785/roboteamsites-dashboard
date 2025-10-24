@@ -109,15 +109,23 @@ export default async function InvitePage({
       redirectTo,
     });
 
-    // Helper to add a user to the team via admin (ignore duplicates)
+    // Helper to add a user to the team via admin (ensure profile exists; ignore duplicates)
     async function addUserIdToTeam(userId: string) {
-      // If your FK points to public.profiles(id), make sure it exists first:
-      await supabaseAdmin.rpc("ensure_profile_for_user", { p_user_id: userId });
-      const { error } = await supabaseAdmin
+      // If FK points to public.profiles(id), make sure the profile row exists:
+      // (Using admin client bypasses RLS; upsert is safe if it already exists)
+      const { error: profileErr } = await supabaseAdmin
+        .from("profiles")
+        .upsert({ id: userId }, { onConflict: "id" });
+      if (profileErr) {
+        errTo(teamId, `Could not ensure profile: ${profileErr.message}`);
+      }
+
+      // Now add membership (FK will be satisfied)
+      const { error: memberErr } = await supabaseAdmin
         .from("team_members")
         .insert({ team_id: teamId, user_id: userId, role });
-      if (error && !/duplicate key|unique constraint/i.test(error.message)) {
-        errTo(teamId, `Could not add to team: ${error.message}`);
+      if (memberErr && !/duplicate key|unique constraint/i.test(memberErr.message)) {
+        errTo(teamId, `Could not add to team: ${memberErr.message}`);
       }
     }
 
@@ -131,17 +139,38 @@ export default async function InvitePage({
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Resolve auth user id via RPC (DB-side lookup — reliable)
-      const { data: resolvedId, error: rpcErr } = await supabaseAdmin.rpc(
-        "get_user_id_by_email",
-        { p_email: email }
-      );
+      // Resolve auth user id via DB function (prefer DB-side lookup if you created it),
+      // otherwise fall back to admin listUsers()
+      let resolvedId: string | null = null;
 
-      if (rpcErr || !resolvedId) {
-        errTo(teamId, "User exists but could not be found by email");
+      // Try RPC if you created "get_user_id_by_email" (optional)
+      try {
+        const { data } = await supabaseAdmin.rpc(
+          "get_user_id_by_email",
+          { p_email: email }
+        );
+        if (typeof data === "string") {
+          resolvedId = data;
+        }
+      } catch {
+        // ignore if the RPC doesn't exist
       }
 
-      await addUserIdToTeam(resolvedId as string);
+      if (!resolvedId) {
+        const list = await supabaseAdmin.auth.admin.listUsers();
+        if (list.error) {
+          errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
+        }
+        const found = list.data?.users?.find(
+          (u) => (u.email ?? "").toLowerCase() === email
+        );
+        if (!found?.id) {
+          errTo(teamId, "User exists but could not be found by email");
+        }
+        resolvedId = found.id;
+      }
+
+      await addUserIdToTeam(resolvedId!);
       okTo(teamId, `User already registered — added to team as ${role}`);
     }
 
