@@ -11,6 +11,7 @@ export const fetchCache = "force-no-store";
 type Search = { error?: string; ok?: string };
 type TeamRow = { id: string; name: string; owner: string };
 
+// These return `never` because they always redirect
 function errTo(teamId: string, msg: string): never {
   redirect(`/teams/${teamId}/invite?error=${encodeURIComponent(msg)}`);
 }
@@ -42,10 +43,14 @@ async function getServerSupabase() {
     cookies: {
       get: (n: string) => cookieStore.get(n)?.value,
       set: (n: string, v: string, o: CookieOptions) => {
-        try { cookieStore.set(n, v, o); } catch {}
+        try {
+          cookieStore.set(n, v, o);
+        } catch {}
       },
       remove: (n: string, o: CookieOptions) => {
-        try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
+        try {
+          cookieStore.set(n, "", { ...o, maxAge: 0 });
+        } catch {}
       },
     },
   });
@@ -63,7 +68,9 @@ export default async function InvitePage({
   // SSR Supabase (user session), created at request time
   const supabase = await getServerSupabase();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   // Verify current user owns this team (RLS still protects writes)
@@ -90,37 +97,25 @@ export default async function InvitePage({
 
     // Recreate SSR client inside the action (for auth check)
     const supabase = await getServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // 1) (Optional) record a pending invite (RLS requires owner) — ignore failures
-    try {
-      await supabase
-        .from("pending_invites")
-        .insert({ team_id: teamId, email, role, invited_by: user.id });
-    } catch {
-      // non-fatal
-    }
+    // Optional: record a pending invite (non-fatal if it fails)
+    const { error: _pendingErr } = await supabase
+      .from("pending_invites")
+      .insert({ team_id: teamId, email, role, invited_by: user.id });
 
-    // 2) Try to send a Supabase invite email using ADMIN client (SERVICE_ROLE)
+    // Admin client for invites and membership write
     const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
     const redirectTo = `${assertEnv("NEXT_PUBLIC_SITE_URL")}/auth/cb`;
     const inviteRes = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo,
     });
 
-    // Helper to add a user to the team via admin (ensure profile exists; ignore duplicates)
+    // Helper: add a user to the team via admin (ignore duplicate membership)
     async function addUserIdToTeam(userId: string) {
-      // If FK points to public.profiles(id), make sure the profile row exists:
-      // (Using admin client bypasses RLS; upsert is safe if it already exists)
-      const { error: profileErr } = await supabaseAdmin
-        .from("profiles")
-        .upsert({ id: userId }, { onConflict: "id" });
-      if (profileErr) {
-        errTo(teamId, `Could not ensure profile: ${profileErr.message}`);
-      }
-
-      // Now add membership (FK will be satisfied)
       const { error: memberErr } = await supabaseAdmin
         .from("team_members")
         .insert({ team_id: teamId, user_id: userId, role });
@@ -130,7 +125,7 @@ export default async function InvitePage({
     }
 
     if (inviteRes.error) {
-      // If already registered, resolve user by email and add them
+      // If already registered, resolve user by email and add them to the team
       const alreadyRegistered =
         /already been registered|already registered|user exists/i.test(
           inviteRes.error.message || ""
@@ -139,38 +134,22 @@ export default async function InvitePage({
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Resolve auth user id via DB function (prefer DB-side lookup if you created it),
-      // otherwise fall back to admin listUsers()
-      let resolvedId: string | null = null;
-
-      // Try RPC if you created "get_user_id_by_email" (optional)
-      try {
-        const { data } = await supabaseAdmin.rpc(
-          "get_user_id_by_email",
-          { p_email: email }
-        );
-        if (typeof data === "string") {
-          resolvedId = data;
-        }
-      } catch {
-        // ignore if the RPC doesn't exist
+      // Resolve auth user id via Admin listUsers (no paging for small sets)
+      const list = await supabaseAdmin.auth.admin.listUsers();
+      if (list.error) {
+        errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
       }
 
-      if (!resolvedId) {
-        const list = await supabaseAdmin.auth.admin.listUsers();
-        if (list.error) {
-          errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
-        }
-        const found = list.data?.users?.find(
-          (u) => (u.email ?? "").toLowerCase() === email
-        );
-        if (!found?.id) {
-          errTo(teamId, "User exists but could not be found by email");
-        }
-        resolvedId = found.id;
+      type AdminListedUser = { id: string; email?: string | null };
+      const users = (list.data?.users ?? []) as AdminListedUser[];
+      const existing = users.find(
+        (u) => (u.email ?? "").toLowerCase() === email
+      );
+      if (!existing?.id) {
+        errTo(teamId, "User exists but could not be found by email");
       }
 
-      await addUserIdToTeam(resolvedId!);
+      await addUserIdToTeam(existing.id);
       okTo(teamId, `User already registered — added to team as ${role}`);
     }
 
