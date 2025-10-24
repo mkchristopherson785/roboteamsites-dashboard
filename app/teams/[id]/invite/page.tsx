@@ -112,12 +112,7 @@ export default async function InvitePage({
     // Helper to add a user to the team via admin (ignore duplicates)
     async function addUserIdToTeam(userId: string) {
       // If your FK points to public.profiles(id), make sure it exists first:
-      const { error: ensureErr } = await supabaseAdmin.rpc(
-        "ensure_profile_for_user",
-        { p_user_id: userId }
-      );
-      // ignore ensureErr; it's just to satisfy a FK to profiles if you use one.
-
+      await supabaseAdmin.rpc("ensure_profile_for_user", { p_user_id: userId });
       const { error } = await supabaseAdmin
         .from("team_members")
         .insert({ team_id: teamId, user_id: userId, role });
@@ -136,8 +131,8 @@ export default async function InvitePage({
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Resolve auth user id via RPC (DB-side lookup — reliable, no paging issues)
-      const { data: resolvedId, error: rpcErr } = await supabaseAdmin.rpc<string>(
+      // Resolve auth user id via RPC (DB-side lookup — reliable)
+      const { data: resolvedId, error: rpcErr } = await supabaseAdmin.rpc(
         "get_user_id_by_email",
         { p_email: email }
       );
@@ -146,7 +141,7 @@ export default async function InvitePage({
         errTo(teamId, "User exists but could not be found by email");
       }
 
-      await addUserIdToTeam(resolvedId);
+      await addUserIdToTeam(resolvedId as string);
       okTo(teamId, `User already registered — added to team as ${role}`);
     }
 
