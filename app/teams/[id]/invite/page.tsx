@@ -11,10 +11,10 @@ export const fetchCache = "force-no-store";
 type Search = { error?: string; ok?: string };
 type TeamRow = { id: string; name: string; owner: string };
 
-function errTo(teamId: string, msg: string) {
+function errTo(teamId: string, msg: string): never {
   redirect(`/teams/${teamId}/invite?error=${encodeURIComponent(msg)}`);
 }
-function okTo(teamId: string, msg: string) {
+function okTo(teamId: string, msg: string): never {
   redirect(`/teams/${teamId}/invite?ok=${encodeURIComponent(msg)}`);
 }
 
@@ -42,10 +42,14 @@ async function getServerSupabase() {
     cookies: {
       get: (n: string) => cookieStore.get(n)?.value,
       set: (n: string, v: string, o: CookieOptions) => {
-        try { cookieStore.set(n, v, o); } catch {}
+        try {
+          cookieStore.set(n, v, o);
+        } catch {}
       },
       remove: (n: string, o: CookieOptions) => {
-        try { cookieStore.set(n, "", { ...o, maxAge: 0 }); } catch {}
+        try {
+          cookieStore.set(n, "", { ...o, maxAge: 0 });
+        } catch {}
       },
     },
   });
@@ -60,10 +64,15 @@ export default async function InvitePage({
 }) {
   const teamId = params.id;
 
+  // SSR Supabase (user session), created at request time
   const supabase = await getServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Verify current user owns this team (RLS still protects writes)
   const { data: team, error: teamErr } = await supabase
     .from("teams")
     .select("id,name,owner")
@@ -73,34 +82,41 @@ export default async function InvitePage({
   if (teamErr || !team) notFound();
   if (team.owner !== user.id) redirect("/dashboard"); // not owner → bounce
 
+  // ---- server action (runs only on server) ----
   async function inviteAction(formData: FormData) {
     "use server";
 
-    const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
+    const email =
+      (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const role = (formData.get("role") as string | null)?.trim() ?? "member";
     if (!email) errTo(teamId, "Email is required");
-    if (!["owner", "coach", "member"].includes(role)) errTo(teamId, "Invalid role");
+    if (!["owner", "coach", "member"].includes(role))
+      errTo(teamId, "Invalid role");
 
+    // Recreate SSR client inside the action (for auth check)
     const supabase = await getServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Optional: record a pending invite (non-fatal if it fails)
+    // 1) (Optional) record a pending invite (RLS requires owner) — ignore failures
     try {
-      const { error: invErr } = await supabase
+      await supabase
         .from("pending_invites")
         .insert({ team_id: teamId, email, role, invited_by: user.id });
-      // ignore error – not critical to the flow
     } catch {
-      // ignore network/transport errors too
+      // non-fatal
     }
 
-    // Send invite with admin client
+    // 2) Try to send a Supabase invite email using ADMIN client (SERVICE_ROLE)
     const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
     const redirectTo = `${assertEnv("NEXT_PUBLIC_SITE_URL")}/auth/cb`;
-    const inviteRes = await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo });
+    const inviteRes = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+    });
 
-    // Helper: add user to team via admin (ignore duplicates)
+    // Helper to add a user to the team via admin (ignore duplicates)
     async function addUserIdToTeam(userId: string) {
       const { error } = await supabaseAdmin
         .from("team_members")
@@ -112,21 +128,22 @@ export default async function InvitePage({
 
     if (inviteRes.error) {
       // If already registered, resolve user by email and add them
-      const alreadyRegistered = /already been registered|already registered|user exists/i.test(
-        inviteRes.error.message || ""
-      );
+      const alreadyRegistered =
+        /already been registered|already registered|user exists/i.test(
+          inviteRes.error.message || ""
+        );
       if (!alreadyRegistered) {
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Lookup via listUsers
+      // Lookup via listUsers (admin)
       const list = await supabaseAdmin.auth.admin.listUsers();
       if (list.error) {
         errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
       }
 
       type AdminUser = { id: string; email?: string | null };
-      const users = (list.data?.users ?? []) as unknown as AdminUser[];
+      const users = (list.data?.users ?? []) as AdminUser[];
       const existing = users.find(
         (u) => (u.email ?? "").toLowerCase() === email
       );
@@ -136,7 +153,6 @@ export default async function InvitePage({
 
       await addUserIdToTeam(existing.id);
       okTo(teamId, `User already registered — added to team as ${role}`);
-      return;
     }
 
     // Invite sent successfully → also add them now (optional)
@@ -144,7 +160,6 @@ export default async function InvitePage({
     if (invitedId) {
       await addUserIdToTeam(invitedId);
       okTo(teamId, `Invite sent to ${email} and added to the team.`);
-      return;
     }
 
     okTo(teamId, `Invite sent to ${email}.`);
@@ -152,11 +167,23 @@ export default async function InvitePage({
 
   return (
     <main style={{ maxWidth: 520, margin: "3rem auto", fontFamily: "system-ui" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
         <h1 style={{ margin: 0 }}>Invite to {team?.name ?? "team"}</h1>
         <Link
           href={`/teams/${teamId}`}
-          style={{ textDecoration: "none", border: "1px solid #e2e8f0", padding: "8px 12px", borderRadius: 8 }}
+          style={{
+            textDecoration: "none",
+            border: "1px solid #e2e8f0",
+            padding: "8px 12px",
+            borderRadius: 8,
+          }}
         >
           ← Back to team
         </Link>
