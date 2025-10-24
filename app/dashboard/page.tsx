@@ -30,22 +30,16 @@ export default async function DashboardPage() {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
         set: (name: string, value: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, value, options);
-          } catch {}
+          try { cookieStore.set(name, value, options); } catch {}
         },
         remove: (name: string, options: CookieOptions) => {
-          try {
-            cookieStore.set(name, "", { ...options, maxAge: 0 });
-          } catch {}
+          try { cookieStore.set(name, "", { ...options, maxAge: 0 }); } catch {}
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: teamsRaw } = await supabase
@@ -85,13 +79,6 @@ export default async function DashboardPage() {
     color: "#fff",
   } as const;
 
-  const btnDanger = {
-    ...btnBase,
-    background: "#ef4444",
-    border: "1px solid #dc2626",
-    color: "#fff",
-  } as const;
-
   const btnGhost = {
     ...btnBase,
     border: "1px solid #ddd",
@@ -111,7 +98,6 @@ export default async function DashboardPage() {
         overflowWrap: "break-word",
       }}
     >
-      {/* Header */}
       <header
         style={{
           display: "flex",
@@ -132,13 +118,6 @@ export default async function DashboardPage() {
         </Link>
       </header>
 
-      {/* Profile name editor */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ margin: "0 0 8px" }}>Your Profile</h2>
-        <UpdateProfileName redirectTo="/dashboard?saved=1" />
-      </section>
-
-      {/* Empty state */}
       {isEmpty && (
         <section
           style={{
@@ -164,10 +143,7 @@ export default async function DashboardPage() {
             <form action="/api/bootstrap" method="post" style={{ display: "inline" }}>
               <button
                 type="submit"
-                style={{
-                  ...btnPrimary,
-                  cursor: "pointer",
-                }}
+                style={{ ...btnPrimary, cursor: "pointer" }}
               >
                 Create starter team & site
               </button>
@@ -178,13 +154,7 @@ export default async function DashboardPage() {
 
       {/* Teams Section */}
       <section style={{ marginTop: 24 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h2 style={{ margin: "0 0 8px" }}>Your Teams</h2>
           <Link href="/teams/new" style={{ fontWeight: 600, textDecoration: "none" }}>
             + New Team
@@ -213,13 +183,7 @@ export default async function DashboardPage() {
                   padding: 12,
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: "#666" }}>
@@ -238,13 +202,7 @@ export default async function DashboardPage() {
 
       {/* Sites Section */}
       <section style={{ marginTop: 36 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h2 style={{ margin: "0 0 8px" }}>Your Sites</h2>
           <Link href="/sites/new" style={{ fontWeight: 600, textDecoration: "none" }}>
             + New Site
@@ -265,8 +223,8 @@ export default async function DashboardPage() {
             }}
           >
             {sites.map((s) => {
-              const subdomainUrl = publicHost
-                ? `https://${s.subdomain}.${publicHost}`
+              const subdomainUrl = process.env.NEXT_PUBLIC_PUBLIC_HOST
+                ? `https://${s.subdomain}.${process.env.NEXT_PUBLIC_PUBLIC_HOST}`
                 : null;
               return (
                 <li
@@ -326,7 +284,6 @@ export default async function DashboardPage() {
                         Manage
                       </Link>
 
-                      {/* Delete action matches size & style */}
                       <span style={{ display: "inline-flex" }}>
                         <DeleteSiteButton siteId={s.id} siteName={s.name} />
                       </span>
