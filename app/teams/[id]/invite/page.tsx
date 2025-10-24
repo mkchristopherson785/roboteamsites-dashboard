@@ -90,8 +90,9 @@ export default async function InvitePage({
       (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const role = (formData.get("role") as string | null)?.trim() ?? "member";
     if (!email) errTo(teamId, "Email is required");
-    if (!["owner", "coach", "member"].includes(role))
+    if (!["owner", "coach", "member"].includes(role)) {
       errTo(teamId, "Invalid role");
+    }
 
     // Recreate SSR client inside the action (for auth check)
     const supabase = await getServerSupabase();
@@ -100,16 +101,16 @@ export default async function InvitePage({
     } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // 1) (Optional) record a pending invite (RLS requires owner) — ignore failures
+    // 1) (Optional) record a pending invite (non-fatal if it fails)
     try {
       await supabase
         .from("pending_invites")
         .insert({ team_id: teamId, email, role, invited_by: user.id });
     } catch {
-      // non-fatal
+      // ignore; not critical
     }
 
-    // 2) Try to send a Supabase invite email using ADMIN client (SERVICE_ROLE)
+    // 2) Send a Supabase invite email using ADMIN client (SERVICE_ROLE)
     const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
     const redirectTo = `${assertEnv("NEXT_PUBLIC_SITE_URL")}/auth/cb`;
     const inviteRes = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -118,6 +119,8 @@ export default async function InvitePage({
 
     // Helper to add a user to the team via admin (ignore duplicates)
     async function addUserIdToTeam(userId: string) {
+      // If your FK points to public.profiles(id), make sure it exists:
+      await supabaseAdmin.rpc("ensure_profile_for_user", { p_user_id: userId }).catch(() => {});
       const { error } = await supabaseAdmin
         .from("team_members")
         .insert({ team_id: teamId, user_id: userId, role });
@@ -136,22 +139,16 @@ export default async function InvitePage({
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Lookup via listUsers (admin)
-      const list = await supabaseAdmin.auth.admin.listUsers();
-      if (list.error) {
-        errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
-      }
+      // Resolve auth user id via RPC (DB-side lookup — reliable, no paging issues)
+      const { data: resolvedId, error: rpcErr } = await supabaseAdmin.rpc<{
+        get_user_id_by_email: string | null;
+      }>("get_user_id_by_email", { p_email: email });
 
-      type AdminUser = { id: string; email?: string | null };
-      const users = (list.data?.users ?? []) as AdminUser[];
-      const existing = users.find(
-        (u) => (u.email ?? "").toLowerCase() === email
-      );
-      if (!existing) {
+      if (rpcErr || !resolvedId) {
         errTo(teamId, "User exists but could not be found by email");
       }
 
-      await addUserIdToTeam(existing.id);
+      await addUserIdToTeam(resolvedId);
       okTo(teamId, `User already registered — added to team as ${role}`);
     }
 
