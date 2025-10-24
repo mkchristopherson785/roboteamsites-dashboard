@@ -4,7 +4,6 @@ import DeleteSiteButton from "@/components/DeleteSiteButton";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import UpdateProfileName from "@/components/UpdateProfileName";
 
 type Team = { id: string; name: string; created_at: string };
 type Site = {
@@ -141,10 +140,7 @@ export default async function DashboardPage() {
               + New Site
             </Link>
             <form action="/api/bootstrap" method="post" style={{ display: "inline" }}>
-              <button
-                type="submit"
-                style={{ ...btnPrimary, cursor: "pointer" }}
-              >
+              <button type="submit" style={{ ...btnPrimary, cursor: "pointer" }}>
                 Create starter team & site
               </button>
             </form>
@@ -152,7 +148,7 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Teams Section */}
+      {/* Teams */}
       <section style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h2 style={{ margin: "0 0 8px" }}>Your Teams</h2>
@@ -200,7 +196,7 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* Sites Section */}
+      {/* Sites */}
       <section style={{ marginTop: 36 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h2 style={{ margin: "0 0 8px" }}>Your Sites</h2>
@@ -223,8 +219,8 @@ export default async function DashboardPage() {
             }}
           >
             {sites.map((s) => {
-              const subdomainUrl = process.env.NEXT_PUBLIC_PUBLIC_HOST
-                ? `https://${s.subdomain}.${process.env.NEXT_PUBLIC_PUBLIC_HOST}`
+              const subdomainUrl = publicHost
+                ? `https://${s.subdomain}.${publicHost}`
                 : null;
               return (
                 <li

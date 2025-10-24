@@ -85,11 +85,15 @@ export default async function InvitePage({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Optional: record a pending invite (RLS requires owner)
-    await supabase
-      .from("pending_invites")
-      .insert({ team_id: teamId, email, role, invited_by: user.id })
-      .catch(() => { /* non-fatal */ });
+    // Optional: record a pending invite (non-fatal if it fails)
+    try {
+      const { error: invErr } = await supabase
+        .from("pending_invites")
+        .insert({ team_id: teamId, email, role, invited_by: user.id });
+      // ignore error – not critical to the flow
+    } catch {
+      // ignore network/transport errors too
+    }
 
     // Send invite with admin client
     const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
@@ -115,7 +119,7 @@ export default async function InvitePage({
         errTo(teamId, `Invite email failed: ${inviteRes.error.message}`);
       }
 
-      // Fallback lookup via listUsers
+      // Lookup via listUsers
       const list = await supabaseAdmin.auth.admin.listUsers();
       if (list.error) {
         errTo(teamId, `User exists but lookup failed: ${list.error.message}`);
@@ -135,7 +139,7 @@ export default async function InvitePage({
       return;
     }
 
-    // Invite email sent successfully → also add them immediately (optional)
+    // Invite sent successfully → also add them now (optional)
     const invitedId = inviteRes.data?.user?.id;
     if (invitedId) {
       await addUserIdToTeam(invitedId);
