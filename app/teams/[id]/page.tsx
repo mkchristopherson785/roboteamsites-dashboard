@@ -10,12 +10,8 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type Team = { id: string; name: string; owner: string };
-type MemberRow = {
-  user_id: string;
-  role: string;
-  users?: { email: string | null } | { email: string | null }[] | null;
-};
-type Member = { user_id: string; role: string; email: string | null };
+type MemberRow = { user_id: string; role: string };
+type Member = { user_id: string; role: string };
 type Site = { id: string; name: string; subdomain: string };
 type Profile = { id: string; full_name: string | null };
 
@@ -41,6 +37,7 @@ async function getServerSupabase() {
 export default async function TeamDetailPage({ params }: { params: { id: string } }) {
   const supabase = await getServerSupabase();
 
+  // Auth
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -52,42 +49,46 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
     .single<Team>();
   if (tErr || !team) notFound();
 
-  // Members (+ users.email)
-  const { data: membersRaw } = await supabase
+  // Members (no users join)
+  const { data: membersRaw, error: mErr } = await supabase
     .from("team_members")
-    .select("user_id, role, users ( email )")
+    .select("user_id, role")
     .eq("team_id", team.id);
-
-  const members: Member[] = (membersRaw ?? []).map((m: MemberRow) => {
-    let email: string | null = null;
-    if (Array.isArray(m.users)) email = m.users[0]?.email ?? null;
-    else if (m.users && typeof m.users === "object") email = m.users.email ?? null;
-    return { user_id: m.user_id, role: m.role, email };
-  });
+  if (mErr) {
+    // Not fatal to render, but useful for debugging:
+    console.error("team_members load error", mErr);
+  }
+  const members: Member[] = (membersRaw ?? []).map((m: MemberRow) => ({
+    user_id: m.user_id,
+    role: m.role,
+  }));
 
   // Profiles (names)
   const memberIds = members.map((m) => m.user_id);
   const profilesById = new Map<string, Profile>();
   if (memberIds.length > 0) {
-    const { data: profilesRaw } = await supabase
+    const { data: profilesRaw, error: pErr } = await supabase
       .from("profiles")
       .select("id, full_name")
       .in("id", memberIds);
-    for (const p of (profilesRaw ?? [])) profilesById.set(p.id, p as Profile);
+    if (pErr) {
+      console.error("profiles load error", pErr);
+    } else {
+      for (const p of profilesRaw ?? []) profilesById.set(p.id, p as Profile);
+    }
   }
 
   // Sites
-  const { data: sitesRaw } = await supabase
+  const { data: sitesRaw, error: sErr } = await supabase
     .from("sites")
     .select("id,name,subdomain")
     .eq("team_id", team.id);
+  if (sErr) console.error("sites load error", sErr);
   const sites: Site[] = sitesRaw ?? [];
 
-  // Best display label
+  // Best display label for a member
   const displayFor = (m: Member) =>
-    (profilesById.get(m.user_id)?.full_name || "").trim() ||
-    m.email ||
-    m.user_id;
+    (profilesById.get(m.user_id)?.full_name || "").trim() || m.user_id;
 
   return (
     <AdminLayout
